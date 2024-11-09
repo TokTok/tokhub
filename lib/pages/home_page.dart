@@ -1,107 +1,89 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_redux/flutter_redux.dart';
-import 'package:github/github.dart';
-import 'package:tokhub/app_actions.dart';
-import 'package:tokhub/app_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tokhub/pages/settings_page.dart';
+import 'package:tokhub/providers/github.dart';
+import 'package:tokhub/providers/settings.dart';
 import 'package:tokhub/views.dart';
 import 'package:tokhub/widgets/repositories_view.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return StoreConnector<AppState, MainView>(
-      converter: (store) => store.state.mainView,
-      builder: (context, mainView) => Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: Text(mainView.title),
-        ),
-        drawer: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TokHub',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.inversePrimary,
-                        fontSize: 24,
-                      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(settingsProvider).when(
+          loading: () => const CircularProgressIndicator(),
+          error: (error, _) => Text('Error: $error'),
+          data: (settings) => Scaffold(
+            appBar: AppBar(
+              backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+              title: Text(settings.mainView.title),
+            ),
+            drawer: Drawer(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  DrawerHeader(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.inversePrimary,
                     ),
-                    StoreConnector<AppState, String?>(
-                      converter: (store) => store.state.user?.login,
-                      builder: (context, user) {
-                        final style = TextStyle(
-                          color: Theme.of(context).colorScheme.inversePrimary,
-                        );
-                        return user != null
-                            ? Text('Authenticated: $user', style: style)
-                            : Text('Not authenticated', style: style);
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'TokHub',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        ref.watch(currentUserProvider).when(
+                              loading: () => const CircularProgressIndicator(),
+                              error: (error, _) => Text('Error: $error'),
+                              data: (user) {
+                                final style =
+                                    Theme.of(context).textTheme.bodyMedium;
+                                return user != null
+                                    ? Text('Authenticated: ${user.login}',
+                                        style: style)
+                                    : Text('Not authenticated', style: style);
+                              },
+                            ),
+                      ],
+                    ),
+                  ),
+                  for (final view in MainView.values)
+                    ListTile(
+                      title: Text('${view.emoji} ${view.title}'),
+                      selected: settings.mainView == view,
+                      onTap: () {
+                        ref.read(settingsProvider.notifier).setMainView(view);
+                        Navigator.pop(context);
                       },
                     ),
-                  ],
-                ),
-              ),
-              for (final view in MainView.values)
-                ListTile(
-                  title: Text('${view.emoji} ${view.title}'),
-                  selected: mainView == view,
-                  onTap: () {
-                    StoreProvider.of<AppState>(context)
-                        .dispatch(SetViewAction(view));
-                    Navigator.pop(context);
-                  },
-                ),
-              ListTile(
-                title: const Text('🛠️ Settings'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => StoreConnector<AppState, String?>(
-                        converter: (store) => store.state.token,
-                        builder: (context, token) => SettingsPage(
-                          token: token,
+                  ListTile(
+                    title: const Text('🛠️ Settings'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SettingsPage(),
                         ),
-                      ),
-                    ),
-                  );
-                },
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
+            body: _buildBody(settings.mainView),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                debugPrint('Refreshing');
+                ref.invalidate(repositoriesProvider);
+              },
+              tooltip: 'Refresh',
+              child: const Icon(Icons.refresh),
+            ), // This trailing comma makes auto-formatting nicer for build methods.
           ),
-        ),
-        body: _buildBody(mainView),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            final store = StoreProvider.of<AppState>(context);
-            switch (mainView) {
-              case MainView.home:
-                store.dispatch(const RepositoriesLoadAction());
-                break;
-              case MainView.repos:
-                store.dispatch(const RepositoriesLoadAction());
-                break;
-              case MainView.pulls:
-                store.dispatch(const RepositoriesLoadAction());
-                break;
-            }
-          },
-          tooltip: 'Refresh',
-          child: const Icon(Icons.refresh),
-        ), // This trailing comma makes auto-formatting nicer for build methods.
-      ),
-    );
+        );
   }
 
   Widget _buildBody(MainView view) {
@@ -111,18 +93,7 @@ class HomePage extends StatelessWidget {
           child: Text('Home'),
         );
       case MainView.repos:
-        return StoreConnector<AppState,
-            (List<Repository>, Map<RepositorySlug, List<PullRequest>>)>(
-          converter: (store) =>
-              (store.state.repositories ?? [], store.state.pullRequests ?? {}),
-          builder: (context, data) {
-            final (repositories, pullRequests) = data;
-            return RepositoriesView(
-              repositories: repositories,
-              pullRequests: pullRequests,
-            );
-          },
-        );
+        return const RepositoriesView();
       case MainView.pulls:
         return const Center(
           child: Text('Pull Requests'),
