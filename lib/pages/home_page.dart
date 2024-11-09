@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tokhub/models/github.dart';
 import 'package:tokhub/pages/settings_page.dart';
 import 'package:tokhub/providers/github.dart';
+import 'package:tokhub/providers/objectbox.dart';
 import 'package:tokhub/providers/settings.dart';
 import 'package:tokhub/views.dart';
 import 'package:tokhub/widgets/repositories_view.dart';
@@ -75,9 +77,13 @@ class HomePage extends ConsumerWidget {
             ),
             body: _buildBody(settings.mainView),
             floatingActionButton: FloatingActionButton(
-              onPressed: () {
+              onPressed: () async {
                 debugPrint('Refreshing');
-                ref.invalidate(repositoriesProvider);
+                final store = await ref.watch(objectBoxProvider.future);
+                store.box<StoredRepository>().removeAll();
+                store.box<StoredPullRequest>().removeAll();
+                store.box<StoredPullRequests>().removeAll();
+                ref.invalidate(storedPullRequestsProvider);
               },
               tooltip: 'Refresh',
               child: const Icon(Icons.refresh),

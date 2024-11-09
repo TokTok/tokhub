@@ -7,21 +7,22 @@ final class RepositoriesView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(repositoriesProvider).when(
+    return ref.watch(storedRepositoriesProvider).when(
           loading: () => const CircularProgressIndicator(),
-          error: (error, _) => Text('Error: $error'),
+          error: (error, stacktrace) => Text('Error: $error\n$stacktrace'),
           data: (repositories) => ListView.builder(
             itemCount: repositories.length,
             itemBuilder: (context, index) {
               final repository = repositories[index];
               return ListTile(
-                title: Text(repository.name),
-                subtitle: Text(repository.description),
+                title: Text(repository.data.name),
+                subtitle: Text(repository.data.description),
                 // Show number of pull requests.
                 trailing:
-                    ref.watch(pullRequestsProvider(repository.slug())).when(
+                    ref.watch(storedPullRequestsProvider(repository)).when(
                           loading: () => const CircularProgressIndicator(),
-                          error: (error, _) => Text('Error: $error'),
+                          error: (error, stacktrace) =>
+                              Text('Error: $error $stacktrace'),
                           data: (pullRequests) =>
                               Text('${pullRequests.length} PRs'),
                         ),
