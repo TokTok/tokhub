@@ -7,6 +7,9 @@ final class PullRequestInfo {
   /// The assigned pull request issue number.
   final int number;
 
+  /// The URL to the pull request.
+  final Uri url;
+
   /// The user who proposed this PR.
   final String user;
 
@@ -31,6 +34,7 @@ final class PullRequestInfo {
   const PullRequestInfo({
     required this.repoName,
     required this.number,
+    required this.url,
     required this.user,
     required this.avatar,
     required this.branch,
@@ -44,6 +48,7 @@ final class PullRequestInfo {
     return PullRequestInfo(
       repoName: pr.base!.repo!.fullName,
       number: pr.number!,
+      url: Uri.parse(pr.htmlUrl!),
       user: pr.user!.login!,
       avatar: pr.user!.avatarUrl!,
       branch: pr.head!.ref!,

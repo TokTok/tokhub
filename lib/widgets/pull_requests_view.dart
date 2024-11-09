@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/models/pull_request_info.dart';
 import 'package:tokhub/providers/github.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 final class PullRequestsView extends ConsumerWidget {
   const PullRequestsView({super.key});
@@ -21,14 +22,15 @@ final class PullRequestsView extends ConsumerWidget {
         .toList(growable: false);
     reposWithPrs.sort((a, b) => a.data.name.compareTo(b.data.name));
     const columnWidths = {
-      0: FixedColumnWidth(36),
+      0: FixedColumnWidth(48),
       1: FixedColumnWidth(36),
+      2: FixedColumnWidth(96),
       4: FixedColumnWidth(36),
     };
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Table(
             columnWidths: columnWidths,
             children: const [
@@ -53,14 +55,20 @@ final class PullRequestsView extends ConsumerWidget {
                   .toList(growable: false);
               prs.sort((a, b) => b.number.compareTo(a.number));
               return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
                 title: Text(repo.data.name),
                 subtitle: Table(
                   columnWidths: columnWidths,
                   children: [
                     for (final pr in prs)
                       TableRow(children: [
-                        Text(pr.number.toString()),
+                        TextButton(
+                          style: ButtonStyle(
+                            padding: WidgetStateProperty.all(EdgeInsets.zero),
+                          ),
+                          onPressed: () => launchUrl(pr.url),
+                          child: Text(pr.number.toString()),
+                        ),
                         Tooltip(
                           message: pr.user,
                           child: CircleAvatar(
@@ -68,7 +76,10 @@ final class PullRequestsView extends ConsumerWidget {
                             radius: 12,
                           ),
                         ),
-                        Text(pr.branch),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Text(pr.branch),
+                        ),
                         Text(pr.title),
                         // Text(pr.state.emoji),
                         Tooltip(

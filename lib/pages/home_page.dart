@@ -29,6 +29,13 @@ class HomePage extends ConsumerWidget {
                   DrawerHeader(
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.inversePrimary,
+                      image: const DecorationImage(
+                        image: AssetImage('assets/images/tokhub.png'),
+                        fit: BoxFit.none,
+                        alignment: Alignment.centerRight,
+                        scale: 5,
+                        opacity: 0.7,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
