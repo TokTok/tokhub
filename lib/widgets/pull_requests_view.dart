@@ -58,6 +58,7 @@ final class PullRequestsView extends ConsumerWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
                 title: Text(repo.data.name),
                 subtitle: Table(
+                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                   columnWidths: columnWidths,
                   children: [
                     for (final pr in prs)
@@ -65,6 +66,7 @@ final class PullRequestsView extends ConsumerWidget {
                         TextButton(
                           style: ButtonStyle(
                             padding: WidgetStateProperty.all(EdgeInsets.zero),
+                            visualDensity: VisualDensity.compact,
                           ),
                           onPressed: () => launchUrl(pr.url),
                           child: Text(pr.number.toString()),

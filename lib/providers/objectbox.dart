@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +12,7 @@ part 'objectbox.g.dart';
 Future<Store> objectBox(Ref ref) async {
   final directory = await getApplicationDocumentsDirectory();
   final path = p.join(directory.path, 'TokHub', 'objectbox');
+  await Directory(path).create(recursive: true);
   final store = await openStore(directory: path);
   ref.onDispose(() => store.close());
   return store;
