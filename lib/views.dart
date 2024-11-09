@@ -1,7 +1,7 @@
 enum MainView {
   home('Home', '🏠'),
   repos('Repositories', '📦'),
-  pulls('Pull Requests', '🔀');
+  pullRequests('Pull Requests', '🔀');
 
   final String title;
   final String emoji;

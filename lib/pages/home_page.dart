@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tokhub/models/github.dart';
 import 'package:tokhub/pages/settings_page.dart';
 import 'package:tokhub/providers/github.dart';
+import 'package:tokhub/providers/objectbox.dart';
 import 'package:tokhub/providers/settings.dart';
 import 'package:tokhub/views.dart';
+import 'package:tokhub/widgets/pull_requests_view.dart';
 import 'package:tokhub/widgets/repositories_view.dart';
 
 class HomePage extends ConsumerWidget {
@@ -75,9 +78,13 @@ class HomePage extends ConsumerWidget {
             ),
             body: _buildBody(settings.mainView),
             floatingActionButton: FloatingActionButton(
-              onPressed: () {
+              onPressed: () async {
                 debugPrint('Refreshing');
+                final store = await ref.watch(objectBoxProvider.future);
+                store.box<StoredRepository>().removeAll();
+                store.box<StoredPullRequest>().removeAll();
                 ref.invalidate(repositoriesProvider);
+                ref.invalidate(pullRequestsProvider);
               },
               tooltip: 'Refresh',
               child: const Icon(Icons.refresh),
@@ -94,10 +101,8 @@ class HomePage extends ConsumerWidget {
         );
       case MainView.repos:
         return const RepositoriesView();
-      case MainView.pulls:
-        return const Center(
-          child: Text('Pull Requests'),
-        );
+      case MainView.pullRequests:
+        return const PullRequestsView();
     }
   }
 }
