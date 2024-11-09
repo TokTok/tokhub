@@ -1,0 +1,117 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "3:5926408442548550517",
+      "lastPropertyId": "3:6473916637386087924",
+      "name": "StoredRepository",
+      "properties": [
+        {
+          "id": "1:7746814665232400403",
+          "name": "id",
+          "type": 6,
+          "flags": 129
+        },
+        {
+          "id": "2:6412249381319221740",
+          "name": "json",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "7:8559258837904865314",
+      "lastPropertyId": "4:6101263662846569947",
+      "name": "StoredPullRequest",
+      "properties": [
+        {
+          "id": "2:8822947838096001206",
+          "name": "id",
+          "type": 6,
+          "flags": 129
+        },
+        {
+          "id": "3:5835203777996642242",
+          "name": "json",
+          "type": 9
+        },
+        {
+          "id": "4:6101263662846569947",
+          "name": "repoId",
+          "type": 11,
+          "flags": 520,
+          "indexId": "5:6386462500347607689",
+          "relationTarget": "StoredRepository"
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "8:8388324954487899016",
+      "lastPropertyId": "2:7215029772382664107",
+      "name": "StoredPullRequests",
+      "properties": [
+        {
+          "id": "1:8181586580066980312",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7215029772382664107",
+          "name": "repoId",
+          "type": 11,
+          "flags": 520,
+          "indexId": "4:4643013978914562738",
+          "relationTarget": "StoredRepository"
+        }
+      ],
+      "relations": [
+        {
+          "id": "1:5058311977201426220",
+          "name": "pullRequests",
+          "targetId": "7:8559258837904865314"
+        }
+      ]
+    }
+  ],
+  "lastEntityId": "8:8388324954487899016",
+  "lastIndexId": "5:6386462500347607689",
+  "lastRelationId": "1:5058311977201426220",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [
+    5510755853090561390,
+    7334854490662682028,
+    2058500561010001624,
+    3606386884627646702,
+    8802877510216805625
+  ],
+  "retiredIndexUids": [
+    7689158244494293973,
+    8852582132968765523
+  ],
+  "retiredPropertyUids": [
+    2695112016060740979,
+    9063611630188040517,
+    211946763128958491,
+    2439520005715161103,
+    8070817852140609909,
+    3331015783974575333,
+    4899192386278566712,
+    2225095144639937037,
+    4189497361070431561,
+    6211006873397242632,
+    3914992519253984129,
+    8800716834107769190,
+    9022494461046868935,
+    4263876647146955650,
+    6473916637386087924
+  ],
+  "retiredRelationUids": [],
+  "version": 1
+}
