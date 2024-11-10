@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/models/pull_request_info.dart';
-import 'package:tokhub/providers/github.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:tokhub/providers/pull_request.dart';
+import 'package:tokhub/providers/repository.dart';
+import 'package:tokhub/widgets/pull_request_tile.dart';
 
 final class PullRequestsView extends ConsumerWidget {
   const PullRequestsView({super.key});
@@ -25,21 +26,25 @@ final class PullRequestsView extends ConsumerWidget {
       0: FixedColumnWidth(48),
       1: FixedColumnWidth(36),
       2: FixedColumnWidth(96),
-      4: FixedColumnWidth(36),
+      4: FixedColumnWidth(24),
+      5: FixedColumnWidth(24),
     };
+    const titleStyle = TextStyle(
+      fontWeight: FontWeight.bold,
+    );
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Table(
-            columnWidths: columnWidths,
+            columnWidths: {...columnWidths, 4: FixedColumnWidth(48)},
             children: const [
               TableRow(children: [
-                Text('PR'),
-                Text('User'),
-                Text('Branch'),
-                Text('Title'),
-                Text('State'),
+                Text('PR', style: titleStyle),
+                Text('User', style: titleStyle),
+                Text('Branch', style: titleStyle),
+                Text('Title', style: titleStyle),
+                Text('State', style: titleStyle),
               ]),
             ],
           ),
@@ -51,44 +56,27 @@ final class PullRequestsView extends ConsumerWidget {
             itemBuilder: (context, index) {
               final repo = reposWithPrs[index];
               final prs = repo.pullRequests
-                  .map((spr) => PullRequestInfo.from(spr.data))
+                  .map((spr) => PullRequestInfo.from(repo, spr))
                   .toList(growable: false);
               prs.sort((a, b) => b.number.compareTo(a.number));
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
                 title: Text(repo.data.name),
-                subtitle: Table(
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  columnWidths: columnWidths,
+                subtitle: Column(
                   children: [
                     for (final pr in prs)
-                      TableRow(children: [
-                        TextButton(
-                          style: ButtonStyle(
-                            padding: WidgetStateProperty.all(EdgeInsets.zero),
-                            visualDensity: VisualDensity.compact,
+                      ref.watch(pullRequestProvider(repo, pr.number)).when(
+                            loading: () => PullRequestTile(
+                              pullRequest: pr,
+                              columnWidths: columnWidths,
+                            ),
+                            error: (error, stacktrace) =>
+                                Text('Error: $error $stacktrace'),
+                            data: (spr) => PullRequestTile(
+                              pullRequest: PullRequestInfo.from(repo, spr),
+                              columnWidths: columnWidths,
+                            ),
                           ),
-                          onPressed: () => launchUrl(pr.url),
-                          child: Text(pr.number.toString()),
-                        ),
-                        Tooltip(
-                          message: pr.user,
-                          child: CircleAvatar(
-                            backgroundImage: NetworkImage(pr.avatar),
-                            radius: 12,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: Text(pr.branch),
-                        ),
-                        Text(pr.title),
-                        // Text(pr.state.emoji),
-                        Tooltip(
-                          message: pr.state.name,
-                          child: Text(pr.state.emoji),
-                        ),
-                      ]),
                   ],
                 ),
               );

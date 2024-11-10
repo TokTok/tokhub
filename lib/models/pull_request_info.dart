@@ -1,8 +1,9 @@
-import 'package:github/github.dart';
+import 'package:tokhub/models/github.dart';
 
 final class PullRequestInfo {
-  /// The repository for which the pull request is.
-  final String repoName;
+  /// The repository to which the pull request belongs.
+  final StoredRepository repo;
+  final StoredPullRequest pr;
 
   /// The assigned pull request issue number.
   final int number;
@@ -26,13 +27,17 @@ final class PullRequestInfo {
   final String title;
 
   /// The mergeability state of the PR (clean = it's mergeable now).
-  final PullRequestState state;
+  final PullRequestMergeableState state;
 
-  /// The origin repository as user/reponame string.
-  final String? origin;
+  /// Whether the PR is a draft.
+  final bool draft;
+
+  /// The head commit SHA of the PR.
+  final String commitSha;
 
   const PullRequestInfo({
-    required this.repoName,
+    required this.repo,
+    required this.pr,
     required this.number,
     required this.url,
     required this.user,
@@ -41,29 +46,32 @@ final class PullRequestInfo {
     required this.created,
     required this.title,
     required this.state,
-    required this.origin,
+    required this.draft,
+    required this.commitSha,
   });
 
-  factory PullRequestInfo.from(PullRequest pr) {
+  factory PullRequestInfo.from(StoredRepository repo, StoredPullRequest pr) {
     return PullRequestInfo(
-      repoName: pr.base!.repo!.fullName,
-      number: pr.number!,
-      url: Uri.parse(pr.htmlUrl!),
-      user: pr.user!.login!,
-      avatar: pr.user!.avatarUrl!,
-      branch: pr.head!.ref!,
-      created: pr.createdAt!,
-      title: pr.title!,
-      state: PullRequestState.values.firstWhere(
-        (s) => s.name == pr.mergeableState,
-        orElse: () => PullRequestState.unknown,
+      repo: repo,
+      pr: pr,
+      number: pr.data.number!,
+      url: Uri.parse(pr.data.htmlUrl!),
+      user: pr.data.user!.login!,
+      avatar: pr.data.user!.avatarUrl!,
+      branch: pr.data.head!.ref!,
+      created: pr.data.createdAt!,
+      title: pr.data.title!,
+      state: PullRequestMergeableState.values.firstWhere(
+        (s) => s.name == pr.data.mergeableState,
+        orElse: () => PullRequestMergeableState.unknown,
       ),
-      origin: pr.head!.repo!.fullName,
+      draft: pr.data.draft!,
+      commitSha: pr.data.head!.sha!,
     );
   }
 }
 
-enum PullRequestState {
+enum PullRequestMergeableState {
   clean('✅'),
   behind('💤'),
   blocked('🚧'),
@@ -74,5 +82,5 @@ enum PullRequestState {
 
   final String emoji;
 
-  const PullRequestState(this.emoji);
+  const PullRequestMergeableState(this.emoji);
 }

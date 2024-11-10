@@ -4,10 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:tokhub/data_object.dart';
+import 'package:tokhub/logger.dart';
 import 'package:tokhub/views.dart';
 
 part 'settings.freezed.dart';
 part 'settings.g.dart';
+
+const _logger = Logger(['SettingsProvider']);
 
 @riverpod
 final class Settings extends _$Settings {
@@ -20,13 +23,13 @@ final class Settings extends _$Settings {
   }
 
   void setMainView(MainView mainView) {
-    debugPrint('setMainView: $mainView');
+    _logger.v('setMainView: $mainView');
     state = state.whenData((data) => data.copyWith(mainView: mainView));
     _save();
   }
 
   void setToken(String? token) async {
-    debugPrint('setToken: $token');
+    _logger.v('setToken: $token');
     state = state.whenData((data) => data.copyWith(token: token));
     _save();
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tokhub/models/github.dart';
-import 'package:tokhub/providers/github.dart';
+import 'package:tokhub/providers/repository.dart';
 
 final class RepositoriesView extends ConsumerWidget {
   const RepositoriesView({super.key});
@@ -18,15 +18,12 @@ final class RepositoriesView extends ConsumerWidget {
     return ListView.builder(
       itemCount: repositories.length,
       itemBuilder: (context, index) {
-        final repository = repositories[index];
+        final repo = repositories[index];
         return ListTile(
-          title: Text(repository.data.name),
-          subtitle: Text(repository.data.description),
+          title: Text(repo.data.name),
+          subtitle: Text(repo.data.description),
           // Show number of pull requests.
-          trailing: ref.watch(pullRequestsProvider(repository)).when(
-              loading: () => const CircularProgressIndicator(),
-              error: (error, stacktrace) => Text('Error: $error $stacktrace'),
-              data: (pullRequests) => Text('${pullRequests.length} PRs')),
+          trailing: Text('${repo.pullRequests.length} PRs'),
         );
       },
     );

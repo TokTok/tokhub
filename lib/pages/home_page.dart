@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/pages/settings_page.dart';
+import 'package:tokhub/providers/combined_repository_status.dart';
 import 'package:tokhub/providers/github.dart';
 import 'package:tokhub/providers/objectbox.dart';
 import 'package:tokhub/providers/settings.dart';
@@ -88,10 +89,12 @@ class HomePage extends ConsumerWidget {
               onPressed: () async {
                 debugPrint('Refreshing');
                 final store = await ref.watch(objectBoxProvider.future);
-                store.box<StoredRepository>().removeAll();
-                store.box<StoredPullRequest>().removeAll();
-                ref.invalidate(repositoriesProvider);
-                ref.invalidate(pullRequestsProvider);
+                // store.box<StoredRepository>().removeAll();
+                // store.box<StoredPullRequest>().removeAll();
+                // ref.invalidate(repositoriesProvider);
+                // ref.invalidate(pullRequestsProvider);
+                store.box<StoredCombinedRepositoryStatus>().removeAll();
+                ref.invalidate(combinedRepositoryStatusProvider);
               },
               tooltip: 'Refresh',
               child: const Icon(Icons.refresh),
