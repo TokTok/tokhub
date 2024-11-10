@@ -13,7 +13,7 @@ const _logger = Logger(['CombinedRepositoryStatusProvider']);
 
 Future<void> combinedRepositoryStatusRefresh(
     WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  final commitSha = pullRequest.data.head!.sha!;
+  final commitSha = pullRequest.data.head.sha;
   final store = await ref.watch(objectBoxProvider.future);
   final box = store.box<StoredCombinedRepositoryStatus>();
   box
@@ -31,7 +31,7 @@ Future<StoredCombinedRepositoryStatus> combinedRepositoryStatus(
   bool force = false,
 }) async {
   final slug = repo.data.slug();
-  final commitSha = pullRequest.data.head!.sha!;
+  final commitSha = pullRequest.data.head.sha;
 
   final store = await ref.watch(objectBoxProvider.future);
   final box = store.box<StoredCombinedRepositoryStatus>();
@@ -50,7 +50,7 @@ Future<StoredCombinedRepositoryStatus> combinedRepositoryStatus(
       pullRequest.data.updatedAt!
           .isBefore(DateTime.now().subtract(maxPullRequestAge))) {
     _logger.d(
-        'Pull request ${repo.data.name}/${pullRequest.data.head!.ref} is too old'
+        'Pull request ${repo.data.name}/${pullRequest.data.head.ref} is too old'
         ', not fetching combined statuses');
     return StoredCombinedRepositoryStatus();
   }

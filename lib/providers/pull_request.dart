@@ -52,7 +52,7 @@ Future<List<StoredPullRequest>> pullRequests(
   final prs =
       (await ref.watch(_githubPullRequestsProvider(repo.data.slug()).future))
           .map((pr) => StoredPullRequest()
-            ..data = pr
+            ..data = MinimalPullRequest.fromJson(pr.toJson())
             ..repo.target = repo)
           .toList(growable: false);
   box.putMany(prs);
@@ -61,7 +61,7 @@ Future<List<StoredPullRequest>> pullRequests(
 }
 
 @riverpod
-Future<PullRequest> _githubPullRequest(
+Future<MinimalPullRequest> _githubPullRequest(
     Ref ref, RepositorySlug slug, int number) async {
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
@@ -69,7 +69,11 @@ Future<PullRequest> _githubPullRequest(
   }
 
   _logger.d('Fetching pull request $slug#$number');
-  return client.pullRequests.get(slug, number);
+  return client.getJSON(
+    '/repos/${slug.fullName}/pulls/$number',
+    convert: MinimalPullRequest.fromJson,
+    statusCode: StatusCodes.OK,
+  );
 }
 
 @riverpod

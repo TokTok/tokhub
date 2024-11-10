@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github/github.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:tokhub/logger.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/providers/check_runs.dart';
 import 'package:tokhub/providers/combined_repository_status.dart';
 
 part 'check_status.g.dart';
-
-const _logger = Logger(['CheckStatusProvider']);
 
 Future<void> checkStatusRefresh(
     WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
@@ -19,8 +16,11 @@ Future<void> checkStatusRefresh(
 
 @riverpod
 Future<List<CheckStatus>> checkStatus(
-    Ref ref, StoredRepository repo, StoredPullRequest pullRequest,
-    {bool force = false}) async {
+  Ref ref,
+  StoredRepository repo,
+  StoredPullRequest pullRequest, {
+  required bool force,
+}) async {
   final statuses = (await ref.watch(combinedRepositoryStatusProvider(
     repo,
     pullRequest,
@@ -36,13 +36,15 @@ Future<List<CheckStatus>> checkStatus(
 
   final byName = <String, CheckStatus>{};
   for (final run in runs) {
-    byName[run.data!.name!] = CheckStatus(
-      name: run.data!.name!,
-      conclusion: _checkConclusion(run.data!.conclusion),
-      // TODO(iphydf): When the github api supports completed_at, show the time
-      // taken (completed - started).
-      description: '',
-      detailsUrl: Uri.parse(run.data!.detailsUrl!),
+    byName[run.data.name] = CheckStatus(
+      name: run.data.name,
+      conclusion: run.data.conclusion,
+      description: _completedDescription(
+        run.data.conclusion,
+        run.data.startedAt,
+        run.data.completedAt,
+      ),
+      detailsUrl: Uri.parse(run.data.detailsUrl),
     );
   }
   if (statuses != null) {
@@ -50,7 +52,7 @@ Future<List<CheckStatus>> checkStatus(
       byName[status.context!] = CheckStatus(
         name: status.context!,
         conclusion: _statusConclusion(status.state),
-        description: status.description!,
+        description: '${_capitalize(status.state)} — ${status.description}',
         detailsUrl:
             status.targetUrl == null ? null : Uri.parse(status.targetUrl!),
       );
@@ -60,25 +62,35 @@ Future<List<CheckStatus>> checkStatus(
   return byName.values.toList(growable: false);
 }
 
-CheckStatusConclusion _checkConclusion(CheckRunConclusion state) {
-  switch (state) {
-    case CheckRunConclusion.success:
-      return CheckStatusConclusion.success;
-    case CheckRunConclusion.failure:
-      return CheckStatusConclusion.failure;
-    case CheckRunConclusion.neutral:
-      return CheckStatusConclusion.pending;
-    case CheckRunConclusion.cancelled:
-      return CheckStatusConclusion.cancelled;
-    case CheckRunConclusion.timedOut:
-      return CheckStatusConclusion.timedOut;
-    case CheckRunConclusion.skipped:
-      return CheckStatusConclusion.skipped;
-    case CheckRunConclusion.actionRequired:
-      return CheckStatusConclusion.actionRequired;
-    default:
-      return CheckStatusConclusion.empty;
+String _capitalize(String? string) {
+  if (string == null || string.isEmpty) {
+    return '';
   }
+  return string[0].toUpperCase() + string.substring(1);
+}
+
+String _completedDescription(
+  CheckStatusConclusion conclusion,
+  DateTime? startedAt,
+  DateTime? completedAt,
+) {
+  if (startedAt == null || completedAt == null) {
+    return '';
+  }
+  final duration = completedAt.difference(startedAt);
+  return '${conclusion.title} ${_timeDescription(duration)}';
+}
+
+String _timeDescription(Duration duration) {
+  final parts = <String>[];
+  if (duration.inHours > 0) {
+    parts.add('${duration.inHours}h');
+  }
+  if (duration.inMinutes > 0) {
+    parts.add('${duration.inMinutes.remainder(60)}m');
+  }
+  parts.add('${duration.inSeconds.remainder(60)}s');
+  return parts.join(' ');
 }
 
 CheckStatusConclusion _statusConclusion(String? state) {
@@ -111,17 +123,20 @@ final class CheckStatus {
 }
 
 enum CheckStatusConclusion {
-  empty(Icons.help, Colors.grey),
-  success(Icons.check_circle, Colors.green),
-  cancelled(Icons.cancel, Colors.grey),
-  timedOut(Icons.timer, Colors.grey),
-  skipped(Icons.skip_next, Colors.grey),
-  pending(Icons.timelapse, Colors.orange),
-  actionRequired(Icons.warning, Colors.yellow),
-  failure(Icons.error_outline, Colors.red);
+  empty('empty', 'Unknown after', Icons.help, Colors.grey),
+  success('success', 'Successful in', Icons.check_circle, Colors.green),
+  cancelled('cancelled', 'Cancelled after', Icons.cancel, Colors.grey),
+  timedOut('timed_out', 'Timed out after', Icons.timer, Colors.grey),
+  skipped('skipped', 'Skipped after', Icons.skip_next, Colors.grey),
+  pending('pending', 'Pending', Icons.timelapse, Colors.orange),
+  actionRequired(
+      'action_required', 'Action required', Icons.warning, Colors.yellow),
+  failure('failure', 'Failing after', Icons.error_outline, Colors.red);
 
+  final String string;
+  final String title;
   final IconData icon;
   final Color color;
 
-  const CheckStatusConclusion(this.icon, this.color);
+  const CheckStatusConclusion(this.string, this.title, this.icon, this.color);
 }

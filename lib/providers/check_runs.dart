@@ -11,9 +11,11 @@ part 'check_runs.g.dart';
 
 const _logger = Logger(['CheckRunsProvider']);
 
+const _previewHeader = 'application/vnd.github.antiope-preview+json';
+
 Future<void> checkRunsRefresh(
     WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  final commitSha = pullRequest.data.head!.sha!;
+  final commitSha = pullRequest.data.head.sha;
   final store = await ref.watch(objectBoxProvider.future);
   final box = store.box<StoredCheckRun>();
   box.query(StoredCheckRun_.sha.equals(commitSha)).build().remove();
@@ -28,7 +30,7 @@ Future<List<StoredCheckRun>> checkRuns(
   bool force = false,
 }) async {
   final slug = repo.data.slug();
-  final commitSha = pullRequest.data.head!.sha!;
+  final commitSha = pullRequest.data.head.sha;
 
   final store = await ref.watch(objectBoxProvider.future);
   final box = store.box<StoredCheckRun>();
@@ -43,7 +45,7 @@ Future<List<StoredCheckRun>> checkRuns(
       pullRequest.data.updatedAt!
           .isBefore(DateTime.now().subtract(maxPullRequestAge))) {
     _logger.d(
-        'Pull request ${repo.data.name}/${pullRequest.data.head!.ref} is too old'
+        'Pull request ${repo.data.name}/${pullRequest.data.head.ref} is too old'
         ', not fetching check runs');
     return const [];
   }
@@ -57,7 +59,7 @@ Future<List<StoredCheckRun>> checkRuns(
 }
 
 @riverpod
-Future<List<CheckRun>> _githubCheckRuns(
+Future<List<MinimalCheckRun>> _githubCheckRuns(
     Ref ref, RepositorySlug slug, String commitSha) async {
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
@@ -65,7 +67,14 @@ Future<List<CheckRun>> _githubCheckRuns(
   }
 
   _logger.d('Fetching check runs for $slug@$commitSha');
-  return client.checks.checkRuns
-      .listCheckRunsForRef(slug, ref: commitSha)
+  return PaginationHelper(client)
+      .objects<Map<String, dynamic>, MinimalCheckRun>(
+        'GET',
+        'repos/$slug/commits/$commitSha/check-runs',
+        MinimalCheckRun.fromJson,
+        statusCode: StatusCodes.OK,
+        preview: _previewHeader,
+        arrayKey: 'check_runs',
+      )
       .toList();
 }

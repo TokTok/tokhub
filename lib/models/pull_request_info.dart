@@ -20,9 +20,6 @@ final class PullRequestInfo {
   /// The branch name from which the pull request came.
   final String branch;
 
-  /// Creation time of pull request. I.e. when it was proposed.
-  final DateTime created;
-
   /// Title of pull request.
   final String title;
 
@@ -43,7 +40,6 @@ final class PullRequestInfo {
     required this.user,
     required this.avatar,
     required this.branch,
-    required this.created,
     required this.title,
     required this.state,
     required this.draft,
@@ -54,19 +50,18 @@ final class PullRequestInfo {
     return PullRequestInfo(
       repo: repo,
       pr: pr,
-      number: pr.data.number!,
-      url: Uri.parse(pr.data.htmlUrl!),
-      user: pr.data.user!.login!,
-      avatar: pr.data.user!.avatarUrl!,
-      branch: pr.data.head!.ref!,
-      created: pr.data.createdAt!,
-      title: pr.data.title!,
+      number: pr.data.number,
+      url: Uri.parse(pr.data.htmlUrl),
+      user: pr.data.user.login,
+      avatar: pr.data.user.avatarUrl,
+      branch: pr.data.head.ref,
+      title: pr.data.title,
       state: PullRequestMergeableState.values.firstWhere(
         (s) => s.name == pr.data.mergeableState,
         orElse: () => PullRequestMergeableState.unknown,
       ),
-      draft: pr.data.draft!,
-      commitSha: pr.data.head!.sha!,
+      draft: pr.data.draft,
+      commitSha: pr.data.head.sha,
     );
   }
 }
