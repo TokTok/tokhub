@@ -29,13 +29,19 @@ Future<StoredPullRequest> pullRequest(
         '(${fetched.first.data.mergeableState})');
     return fetched.first;
   }
-  final pr = await ref
-      .watch(_githubPullRequestProvider(repo.data.slug(), number).future);
-  final id = box.put(StoredPullRequest()
-    ..data = pr
-    ..repo.target = repo);
-  _logger.v('Stored pull request: ${repo.data.slug()}#$number');
-  return box.get(id)!;
+  return box.get(
+      await ref.watch(_fetchAndStorePullRequestProvider(repo, number).future))!;
+}
+
+Future<void> pullRequestRefresh(
+  WidgetRef ref,
+  StoredRepository repo,
+  StoredPullRequest pullRequest,
+) async {
+  ref.invalidate(
+      _fetchAndStorePullRequestProvider(repo, pullRequest.data.number));
+  await ref.watch(
+      _fetchAndStorePullRequestProvider(repo, pullRequest.data.number).future);
 }
 
 @riverpod
@@ -51,16 +57,45 @@ Future<List<StoredPullRequest>> pullRequests(
     return fetched;
   }
 
+  final ids = await ref.watch(_fetchAndStorePullRequestsProvider(repo).future);
+  return box
+      .getMany(ids)
+      .whereType<StoredPullRequest>()
+      .toList(growable: false);
+}
+
+@riverpod
+Future<int> _fetchAndStorePullRequest(
+    Ref ref, StoredRepository repo, int number) async {
+  final store = await ref.watch(objectBoxProvider.future);
+  final box = store.box<StoredPullRequest>();
+
+  final pr = await ref
+      .watch(_githubPullRequestProvider(repo.data.slug(), number).future);
+  final id = box.put(StoredPullRequest()
+    ..data = pr
+    ..repo.target = repo);
+  _logger.v('Stored pull request: ${repo.data.slug()}#$number');
+
+  return id;
+}
+
+@riverpod
+Future<List<int>> _fetchAndStorePullRequests(
+    Ref ref, StoredRepository repo) async {
+  final store = await ref.watch(objectBoxProvider.future);
+  final box = store.box<StoredPullRequest>();
+
   final prs =
       (await ref.watch(_githubPullRequestsProvider(repo.data.slug()).future))
           .map((pr) => StoredPullRequest()
-            ..data =
-                MinimalPullRequest.fromJson(jsonDecode(jsonEncode(pr.toJson())))
+            ..data = pr
             ..repo.target = repo)
           .toList(growable: false);
-  box.putMany(prs);
-  _logger.v('Stored pull requests: ${prs.length}');
-  return box.query(StoredPullRequest_.repo.equals(repo.id)).build().find();
+  final ids = box.putMany(prs);
+  _logger.v('Stored pull requests: ${ids.length}');
+
+  return ids;
 }
 
 @riverpod
@@ -73,14 +108,14 @@ Future<MinimalPullRequest> _githubPullRequest(
 
   _logger.d('Fetching pull request $slug#$number');
   return client.getJSON(
-    '/repos/${slug.fullName}/pulls/$number',
+    '/repos/$slug/pulls/$number',
     convert: MinimalPullRequest.fromJson,
     statusCode: StatusCodes.OK,
   );
 }
 
 @riverpod
-Future<List<PullRequest>> _githubPullRequests(
+Future<List<MinimalPullRequest>> _githubPullRequests(
     Ref ref, RepositorySlug slug) async {
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
@@ -88,5 +123,9 @@ Future<List<PullRequest>> _githubPullRequests(
   }
 
   _logger.d('Fetching pull requests for $slug');
-  return client.pullRequests.list(slug).toList();
+  return client.pullRequests
+      .list(slug)
+      .map((pr) =>
+          MinimalPullRequest.fromJson(jsonDecode(jsonEncode(pr.toJson()))))
+      .toList();
 }

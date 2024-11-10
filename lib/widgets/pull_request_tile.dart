@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:tokhub/models/check_status.dart';
 import 'package:tokhub/models/pull_request_info.dart';
 import 'package:tokhub/providers/check_status.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -155,9 +156,9 @@ final class PullRequestTile extends HookConsumerWidget {
   Widget _combinedStatusTooltip(AsyncValue<List<CheckStatus>> checks) {
     final combinedStatus = checks.when(
       data: (statuses) => statuses.map((e) => e.conclusion).fold(
-          CheckStatusConclusion.empty,
+          CheckStatusConclusion.loading,
           (value, element) => value.index >= element.index ? value : element),
-      loading: () => CheckStatusConclusion.empty,
+      loading: () => CheckStatusConclusion.loading,
       error: (error, stacktrace) => CheckStatusConclusion.actionRequired,
     );
     return Tooltip(

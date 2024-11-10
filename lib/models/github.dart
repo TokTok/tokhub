@@ -2,7 +2,74 @@ import 'dart:convert';
 
 import 'package:github/github.dart';
 import 'package:objectbox/objectbox.dart';
-import 'package:tokhub/providers/check_status.dart';
+import 'package:tokhub/models/check_status.dart';
+
+final class MinimalCheckRun {
+  final int id;
+  final String name;
+  final String headSha;
+  final String detailsUrl;
+  final CheckStatusConclusion conclusion;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+
+  const MinimalCheckRun({
+    required this.id,
+    required this.name,
+    required this.headSha,
+    required this.detailsUrl,
+    required this.conclusion,
+    required this.startedAt,
+    required this.completedAt,
+  });
+
+  const MinimalCheckRun.empty()
+      : id = 0,
+        name = '',
+        headSha = '',
+        detailsUrl = '',
+        conclusion = CheckStatusConclusion.empty,
+        startedAt = null,
+        completedAt = null;
+
+  factory MinimalCheckRun.fromJson(Map<String, dynamic> json) =>
+      MinimalCheckRun(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        headSha: json['head_sha'] as String,
+        detailsUrl: json['details_url'] as String,
+        conclusion: CheckStatusConclusion.values.firstWhere(
+          (e) => e.string == json['conclusion'],
+          orElse: () => CheckStatusConclusion.empty,
+        ),
+        startedAt: json['started_at'] == null
+            ? null
+            : DateTime.parse(json['started_at'] as String),
+        completedAt: json['completed_at'] == null
+            ? null
+            : DateTime.parse(json['completed_at'] as String),
+      );
+
+  MinimalCheckRun copyWith({int? id, String? headSha}) => MinimalCheckRun(
+        id: id ?? this.id,
+        name: name,
+        headSha: headSha ?? this.headSha,
+        detailsUrl: detailsUrl,
+        conclusion: conclusion,
+        startedAt: startedAt,
+        completedAt: completedAt,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'head_sha': headSha,
+        'details_url': detailsUrl,
+        'conclusion': conclusion.string,
+        'started_at': startedAt?.toIso8601String(),
+        'completed_at': completedAt?.toIso8601String(),
+      };
+}
 
 final class MinimalPullRequest {
   final int id;
@@ -148,73 +215,6 @@ final class MinimalUser {
   Map<String, dynamic> toJson() => {
         'login': login,
         'avatar_url': avatarUrl,
-      };
-}
-
-final class MinimalCheckRun {
-  final int id;
-  final String name;
-  final String headSha;
-  final String detailsUrl;
-  final CheckStatusConclusion conclusion;
-  final DateTime? startedAt;
-  final DateTime? completedAt;
-
-  const MinimalCheckRun({
-    required this.id,
-    required this.name,
-    required this.headSha,
-    required this.detailsUrl,
-    required this.conclusion,
-    required this.startedAt,
-    required this.completedAt,
-  });
-
-  const MinimalCheckRun.empty()
-      : id = 0,
-        name = '',
-        headSha = '',
-        detailsUrl = '',
-        conclusion = CheckStatusConclusion.empty,
-        startedAt = null,
-        completedAt = null;
-
-  factory MinimalCheckRun.fromJson(Map<String, dynamic> json) =>
-      MinimalCheckRun(
-        id: json['id'] as int,
-        name: json['name'] as String,
-        headSha: json['head_sha'] as String,
-        detailsUrl: json['details_url'] as String,
-        conclusion: CheckStatusConclusion.values.firstWhere(
-          (e) => e.string == json['conclusion'],
-          orElse: () => CheckStatusConclusion.empty,
-        ),
-        startedAt: json['started_at'] == null
-            ? null
-            : DateTime.parse(json['started_at'] as String),
-        completedAt: json['completed_at'] == null
-            ? null
-            : DateTime.parse(json['completed_at'] as String),
-      );
-
-  MinimalCheckRun copyWith({int? id, String? headSha}) => MinimalCheckRun(
-        id: id ?? this.id,
-        name: name,
-        headSha: headSha ?? this.headSha,
-        detailsUrl: detailsUrl,
-        conclusion: conclusion,
-        startedAt: startedAt,
-        completedAt: completedAt,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'head_sha': headSha,
-        'details_url': detailsUrl,
-        'conclusion': conclusion.string,
-        'started_at': startedAt?.toIso8601String(),
-        'completed_at': completedAt?.toIso8601String(),
       };
 }
 

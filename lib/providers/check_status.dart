@@ -1,17 +1,15 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:tokhub/logger.dart';
+import 'package:tokhub/models/check_status.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/providers/check_runs.dart';
 import 'package:tokhub/providers/combined_repository_status.dart';
+import 'package:tokhub/providers/pull_request.dart';
 
 part 'check_status.g.dart';
 
-Future<void> checkStatusRefresh(
-    WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  combinedRepositoryStatusRefresh(ref, repo, pullRequest);
-  checkRunsRefresh(ref, repo, pullRequest);
-}
+const _logger = Logger(['CheckStatusProvider']);
 
 @riverpod
 Future<List<CheckStatus>> checkStatus(
@@ -61,6 +59,13 @@ Future<List<CheckStatus>> checkStatus(
   return byName.values.toList(growable: false);
 }
 
+Future<void> checkStatusRefresh(
+    WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
+  await pullRequestRefresh(ref, repo, pullRequest);
+  await combinedRepositoryStatusRefresh(ref, repo, pullRequest);
+  await checkRunsRefresh(ref, repo, pullRequest);
+}
+
 String _capitalize(String? string) {
   if (string == null || string.isEmpty) {
     return '';
@@ -80,18 +85,6 @@ String _completedDescription(
   return '${conclusion.title} ${_timeDescription(duration)}';
 }
 
-String _timeDescription(Duration duration) {
-  final parts = <String>[];
-  if (duration.inHours > 0) {
-    parts.add('${duration.inHours}h');
-  }
-  if (duration.inMinutes > 0) {
-    parts.add('${duration.inMinutes.remainder(60)}m');
-  }
-  parts.add('${duration.inSeconds.remainder(60)}s');
-  return parts.join(' ');
-}
-
 CheckStatusConclusion _statusConclusion(String? state) {
   switch (state) {
     case 'success':
@@ -103,39 +96,19 @@ CheckStatusConclusion _statusConclusion(String? state) {
     case 'pending':
       return CheckStatusConclusion.pending;
     default:
+      _logger.w('Unknown status: $state');
       return CheckStatusConclusion.empty;
   }
 }
 
-final class CheckStatus {
-  final String name;
-  final CheckStatusConclusion conclusion;
-  final String description;
-  final Uri? detailsUrl;
-
-  const CheckStatus({
-    required this.name,
-    required this.conclusion,
-    required this.description,
-    required this.detailsUrl,
-  });
-}
-
-enum CheckStatusConclusion {
-  empty('empty', 'Unknown after', Icons.help, Colors.grey),
-  success('success', 'Successful in', Icons.check_circle, Colors.green),
-  cancelled('cancelled', 'Cancelled after', Icons.cancel, Colors.grey),
-  timedOut('timed_out', 'Timed out after', Icons.timer, Colors.grey),
-  skipped('skipped', 'Skipped after', Icons.skip_next, Colors.grey),
-  pending('pending', 'Pending', Icons.timelapse, Colors.orange),
-  actionRequired(
-      'action_required', 'Action required', Icons.warning, Colors.yellow),
-  failure('failure', 'Failing after', Icons.error_outline, Colors.red);
-
-  final String string;
-  final String title;
-  final IconData icon;
-  final Color color;
-
-  const CheckStatusConclusion(this.string, this.title, this.icon, this.color);
+String _timeDescription(Duration duration) {
+  final parts = <String>[];
+  if (duration.inHours > 0) {
+    parts.add('${duration.inHours}h');
+  }
+  if (duration.inMinutes > 0) {
+    parts.add('${duration.inMinutes.remainder(60)}m');
+  }
+  parts.add('${duration.inSeconds.remainder(60)}s');
+  return parts.join(' ');
 }
