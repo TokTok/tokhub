@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:github/github.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -52,7 +54,8 @@ Future<List<StoredPullRequest>> pullRequests(
   final prs =
       (await ref.watch(_githubPullRequestsProvider(repo.data.slug()).future))
           .map((pr) => StoredPullRequest()
-            ..data = MinimalPullRequest.fromJson(pr.toJson())
+            ..data =
+                MinimalPullRequest.fromJson(jsonDecode(jsonEncode(pr.toJson())))
             ..repo.target = repo)
           .toList(growable: false);
   box.putMany(prs);

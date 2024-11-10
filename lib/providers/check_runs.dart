@@ -44,7 +44,7 @@ Future<List<StoredCheckRun>> checkRuns(
   if (!force &&
       pullRequest.data.updatedAt!
           .isBefore(DateTime.now().subtract(maxPullRequestAge))) {
-    _logger.d(
+    _logger.v(
         'Pull request ${repo.data.name}/${pullRequest.data.head.ref} is too old'
         ', not fetching check runs');
     return const [];

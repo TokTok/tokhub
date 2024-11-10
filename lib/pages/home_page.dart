@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/pages/settings_page.dart';
+import 'package:tokhub/providers/check_runs.dart';
 import 'package:tokhub/providers/combined_repository_status.dart';
 import 'package:tokhub/providers/github.dart';
 import 'package:tokhub/providers/objectbox.dart';
+import 'package:tokhub/providers/pull_request.dart';
+import 'package:tokhub/providers/repository.dart';
 import 'package:tokhub/providers/settings.dart';
 import 'package:tokhub/views.dart';
 import 'package:tokhub/widgets/pull_requests_view.dart';
@@ -89,12 +92,16 @@ class HomePage extends ConsumerWidget {
               onPressed: () async {
                 debugPrint('Refreshing');
                 final store = await ref.watch(objectBoxProvider.future);
-                // store.box<StoredRepository>().removeAll();
-                // store.box<StoredPullRequest>().removeAll();
-                // ref.invalidate(repositoriesProvider);
-                // ref.invalidate(pullRequestsProvider);
+                store.box<StoredCheckRun>().removeAll();
                 store.box<StoredCombinedRepositoryStatus>().removeAll();
+                store.box<StoredCombinedRepositoryStatus>().removeAll();
+                store.box<StoredPullRequest>().removeAll();
+                store.box<StoredRepository>().removeAll();
+                ref.invalidate(checkRunsProvider);
                 ref.invalidate(combinedRepositoryStatusProvider);
+                ref.invalidate(combinedRepositoryStatusProvider);
+                ref.invalidate(pullRequestsProvider);
+                ref.invalidate(repositoriesProvider);
               },
               tooltip: 'Refresh',
               child: const Icon(Icons.refresh),
