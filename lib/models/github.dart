@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:github/github.dart';
 import 'package:objectbox/objectbox.dart';
+import 'package:tokhub/logger.dart';
 import 'package:tokhub/models/check_status.dart';
+
+const _logger = Logger(['GitHubModels']);
 
 final class MinimalCheckRun {
   final int id;
@@ -40,7 +43,10 @@ final class MinimalCheckRun {
         detailsUrl: json['details_url'] as String,
         conclusion: CheckStatusConclusion.values.firstWhere(
           (e) => e.string == json['conclusion'],
-          orElse: () => CheckStatusConclusion.empty,
+          orElse: () {
+            _logger.w('Unknown check run conclusion: ${json['conclusion']}');
+            return CheckStatusConclusion.unknown;
+          },
         ),
         startedAt: json['started_at'] == null
             ? null

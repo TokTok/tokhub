@@ -156,7 +156,7 @@ final class PullRequestTile extends HookConsumerWidget {
   Widget _combinedStatusTooltip(AsyncValue<List<CheckStatus>> checks) {
     final combinedStatus = checks.when(
       data: (statuses) => statuses.map((e) => e.conclusion).fold(
-          CheckStatusConclusion.loading,
+          CheckStatusConclusion.unknown,
           (value, element) => value.index >= element.index ? value : element),
       loading: () => CheckStatusConclusion.loading,
       error: (error, stacktrace) => CheckStatusConclusion.actionRequired,

@@ -13,11 +13,12 @@ final class Logger {
 
   void _logLine(LogLevel level, String text, [StackTrace? stackTrace]) {
     if (level == LogLevel.verbose && !verbose) return;
+    final line = '${level.name[0].toUpperCase()} $tags $text';
     if (stackTrace != null) {
-      debugPrintStack(stackTrace: stackTrace, label: '$tags $text');
+      debugPrintStack(stackTrace: stackTrace, label: line);
       _log.add(LogLine(clock.now(), level, tags, text, stackTrace));
     } else {
-      debugPrint('$tags $text');
+      debugPrint(line);
       _log.add(LogLine(clock.now(), level, tags, text));
     }
   }

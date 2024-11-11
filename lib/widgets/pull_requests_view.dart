@@ -61,7 +61,16 @@ final class PullRequestsView extends ConsumerWidget {
               prs.sort((a, b) => b.number.compareTo(a.number));
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
-                title: Text(repo.data.name),
+                title: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(repo.data.name),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () => pullRequestsRefresh(ref, repo),
+                    ),
+                  ],
+                ),
                 subtitle: Column(
                   children: [
                     for (final pr in prs)

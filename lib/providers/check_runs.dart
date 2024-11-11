@@ -13,15 +13,6 @@ const _logger = Logger(['CheckRunsProvider']);
 
 const _previewHeader = 'application/vnd.github.antiope-preview+json';
 
-Future<void> checkRunsRefresh(
-    WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  final commitSha = pullRequest.data.head.sha;
-  final store = await ref.watch(objectBoxProvider.future);
-  final box = store.box<StoredCheckRun>();
-  box.query(StoredCheckRun_.sha.equals(commitSha)).build().remove();
-  ref.invalidate(checkRunsProvider(repo, pullRequest));
-}
-
 @riverpod
 Future<List<StoredCheckRun>> checkRuns(
   Ref ref,
@@ -50,17 +41,46 @@ Future<List<StoredCheckRun>> checkRuns(
     return const [];
   }
 
+  final ids = await ref
+      .watch(_fetchAndStoreCheckRunsProvider(repo, pullRequest).future);
+  return box.getMany(ids).whereType<StoredCheckRun>().toList(growable: false);
+}
+
+Future<void> checkRunsRefresh(
+    WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
+  ref.invalidate(_fetchAndStoreCheckRunsProvider(repo, pullRequest));
+  await ref.watch(_fetchAndStoreCheckRunsProvider(repo, pullRequest).future);
+}
+
+@riverpod
+Future<List<int>> _fetchAndStoreCheckRuns(
+    Ref ref, StoredRepository repo, StoredPullRequest pullRequest) async {
+  final commitSha = pullRequest.data.head.sha;
+
+  final store = await ref.watch(objectBoxProvider.future);
+  final box = store.box<StoredCheckRun>();
+
+  // Fetch new check runs.
   final runs =
-      await ref.watch(_githubCheckRunsProvider(slug, commitSha).future);
+      await ref.watch(_githubCheckRunsProvider(repo, pullRequest).future);
+
+  // Delete existing check runs for the same commit.
+  box.query(StoredCheckRun_.sha.equals(commitSha)).build().remove();
+
+  // Store the new check runs.
   final ids = box.putMany(
       runs.map((run) => StoredCheckRun()..data = run).toList(growable: false));
   _logger.v('Stored check runs: ${runs.length}');
-  return box.getMany(ids).whereType<StoredCheckRun>().toList(growable: false);
+
+  return ids;
 }
 
 @riverpod
 Future<List<MinimalCheckRun>> _githubCheckRuns(
-    Ref ref, RepositorySlug slug, String commitSha) async {
+    Ref ref, StoredRepository repo, StoredPullRequest pullRequest) async {
+  final slug = repo.data.slug();
+  final commitSha = pullRequest.data.head.sha;
+
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
     return const [];

@@ -64,14 +64,18 @@ Future<List<StoredPullRequest>> pullRequests(
       .toList(growable: false);
 }
 
+Future<void> pullRequestsRefresh(WidgetRef ref, StoredRepository repo) async {
+  ref.invalidate(_fetchAndStorePullRequestsProvider(repo));
+  await ref.watch(_fetchAndStorePullRequestsProvider(repo).future);
+}
+
 @riverpod
 Future<int> _fetchAndStorePullRequest(
     Ref ref, StoredRepository repo, int number) async {
   final store = await ref.watch(objectBoxProvider.future);
   final box = store.box<StoredPullRequest>();
 
-  final pr = await ref
-      .watch(_githubPullRequestProvider(repo.data.slug(), number).future);
+  final pr = await ref.watch(_githubPullRequestProvider(repo, number).future);
   final id = box.put(StoredPullRequest()
     ..data = pr
     ..repo.target = repo);
@@ -86,12 +90,11 @@ Future<List<int>> _fetchAndStorePullRequests(
   final store = await ref.watch(objectBoxProvider.future);
   final box = store.box<StoredPullRequest>();
 
-  final prs =
-      (await ref.watch(_githubPullRequestsProvider(repo.data.slug()).future))
-          .map((pr) => StoredPullRequest()
-            ..data = pr
-            ..repo.target = repo)
-          .toList(growable: false);
+  final prs = (await ref.watch(_githubPullRequestsProvider(repo).future))
+      .map((pr) => StoredPullRequest()
+        ..data = pr
+        ..repo.target = repo)
+      .toList(growable: false);
   final ids = box.putMany(prs);
   _logger.v('Stored pull requests: ${ids.length}');
 
@@ -100,7 +103,8 @@ Future<List<int>> _fetchAndStorePullRequests(
 
 @riverpod
 Future<MinimalPullRequest> _githubPullRequest(
-    Ref ref, RepositorySlug slug, int number) async {
+    Ref ref, StoredRepository repo, int number) async {
+  final slug = repo.data.slug();
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
     throw StateError('No client available');
@@ -116,7 +120,8 @@ Future<MinimalPullRequest> _githubPullRequest(
 
 @riverpod
 Future<List<MinimalPullRequest>> _githubPullRequests(
-    Ref ref, RepositorySlug slug) async {
+    Ref ref, StoredRepository repo) async {
+  final slug = repo.data.slug();
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
     return const [];
