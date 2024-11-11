@@ -1,27 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tokhub/logger.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/models/pull_request_info.dart';
 import 'package:tokhub/providers/pull_request.dart';
 import 'package:tokhub/providers/repository.dart';
 import 'package:tokhub/widgets/pull_request_tile.dart';
 
+const _logger = Logger(['PullRequestsView']);
+
 final class PullRequestsView extends ConsumerWidget {
-  const PullRequestsView({super.key});
+  final String org;
+
+  const PullRequestsView({super.key, required this.org});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(repositoriesProvider).when(
+    return ref.watch(repositoriesProvider(org: org)).when(
         loading: () => const CircularProgressIndicator(),
         error: (error, stacktrace) => Text('Error: $error\n$stacktrace'),
         data: (data) => _build(data, ref));
   }
 
-  Widget _build(List<StoredRepository> repositories, WidgetRef ref) {
+  Widget _build(List<MinimalRepository> repositories, WidgetRef ref) {
     final reposWithPrs = repositories
         .where((repo) => repo.pullRequests.isNotEmpty)
         .toList(growable: false);
-    reposWithPrs.sort((a, b) => a.data.name.compareTo(b.data.name));
+    reposWithPrs.sort((a, b) => a.name.compareTo(b.name));
+    _logger.v(
+        'Building pull requests view with ${reposWithPrs.length} repositories');
     const columnWidths = {
       0: FixedColumnWidth(48),
       1: FixedColumnWidth(36),
@@ -64,10 +71,12 @@ final class PullRequestsView extends ConsumerWidget {
                 title: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Text(repo.data.name),
+                    Text(repo.name),
                     IconButton(
                       icon: const Icon(Icons.refresh),
-                      onPressed: () => pullRequestsRefresh(ref, repo),
+                      onPressed: () async {
+                        await pullRequestsRefresh(ref, repo);
+                      },
                     ),
                   ],
                 ),

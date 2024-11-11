@@ -12,72 +12,70 @@ part 'combined_repository_status.g.dart';
 const _logger = Logger(['CombinedRepositoryStatusProvider']);
 
 @riverpod
-Future<StoredCombinedRepositoryStatus> combinedRepositoryStatus(
+Future<MinimalCombinedRepositoryStatus> combinedRepositoryStatus(
   Ref ref,
-  StoredRepository repo,
-  StoredPullRequest pullRequest, {
-  bool force = false,
+  MinimalRepository repo,
+  MinimalPullRequest pullRequest, {
+  required bool force,
 }) async {
-  final slug = repo.data.slug();
-  final commitSha = pullRequest.data.head.sha;
+  final slug = repo.slug();
+  final commitSha = pullRequest.head.sha;
 
   final store = await ref.watch(objectBoxProvider.future);
-  final box = store.box<StoredCombinedRepositoryStatus>();
+  final box = store.box<MinimalCombinedRepositoryStatus>();
   final fetched = box
-      .query(StoredCombinedRepositoryStatus_.repo.equals(slug.fullName) &
-          StoredCombinedRepositoryStatus_.sha.equals(commitSha))
+      .query(MinimalCombinedRepositoryStatus_.repository.equals(repo.id) &
+          MinimalCombinedRepositoryStatus_.sha.equals(commitSha))
       .build()
       .find();
   if (fetched.isNotEmpty) {
     _logger.v('Found stored combined repository status for $slug@$commitSha '
-        '(${fetched.first.data.statuses?.length} statuses)');
+        '(${fetched.first.statuses?.length} statuses)');
     return fetched.first;
   }
 
   if (!force &&
-      pullRequest.data.updatedAt!
+      pullRequest.updatedAt!
           .isBefore(DateTime.now().subtract(maxPullRequestAge))) {
-    _logger.v(
-        'Pull request ${repo.data.name}/${pullRequest.data.head.ref} is too old'
+    _logger.v('Pull request ${repo.name}/${pullRequest.head.ref} is too old'
         ', not fetching combined statuses');
-    return StoredCombinedRepositoryStatus();
+    return MinimalCombinedRepositoryStatus();
   }
 
   final id = await ref.watch(
-      _fetchAndStoreCombinedRepositoryStatusProvider(repo, pullRequest).future);
+      _fetchAndStoreCombinedRepositoryStatusProvider(repo, commitSha).future);
   return box.get(id)!;
 }
 
-Future<void> combinedRepositoryStatusRefresh(
-    WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
+Future<void> combinedRepositoryStatusRefresh(WidgetRef ref,
+    MinimalRepository repo, String commitSha) async {
   ref.invalidate(
-      _fetchAndStoreCombinedRepositoryStatusProvider(repo, pullRequest));
+      _fetchAndStoreCombinedRepositoryStatusProvider(repo, commitSha));
   await ref.watch(
-      _fetchAndStoreCombinedRepositoryStatusProvider(repo, pullRequest).future);
+      _fetchAndStoreCombinedRepositoryStatusProvider(repo, commitSha).future);
 }
 
 @riverpod
 Future<int> _fetchAndStoreCombinedRepositoryStatus(
-    Ref ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  final slug = repo.data.slug();
-  final commitSha = pullRequest.data.head.sha;
+    Ref ref, MinimalRepository repo, String commitSha) async {
+  final slug = repo.slug();
 
   final store = await ref.watch(objectBoxProvider.future);
-  final box = store.box<StoredCombinedRepositoryStatus>();
+  final box = store.box<MinimalCombinedRepositoryStatus>();
 
   // Fetch the combined status from GitHub.
   final status = await ref
-      .watch(_githubCombinedRepositoryStatusProvider(repo, pullRequest).future);
+      .watch(_githubCombinedRepositoryStatusProvider(slug, commitSha).future);
 
   // Delete existing combined status for the same commit.
   box
-      .query(StoredCombinedRepositoryStatus_.repo.equals(slug.fullName) &
-          StoredCombinedRepositoryStatus_.sha.equals(commitSha))
+      .query(MinimalCombinedRepositoryStatus_.repository.equals(repo.id) &
+          MinimalCombinedRepositoryStatus_.sha.equals(commitSha))
       .build()
       .remove();
 
   // Store the new combined status.
-  final id = box.put(StoredCombinedRepositoryStatus()..data = status);
+  final id = box.put(status);
   _logger.v('Stored combined repository status: $slug@$commitSha '
       '(${status.statuses?.length} statuses)');
 
@@ -85,16 +83,17 @@ Future<int> _fetchAndStoreCombinedRepositoryStatus(
 }
 
 @riverpod
-Future<CombinedRepositoryStatus> _githubCombinedRepositoryStatus(
-    Ref ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  final slug = repo.data.slug();
-  final commitSha = pullRequest.data.head.sha;
-
+Future<MinimalCombinedRepositoryStatus> _githubCombinedRepositoryStatus(
+    Ref ref, RepositorySlug slug, String commitSha) async {
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
     throw StateError('No client available');
   }
 
   _logger.d('Fetching commit status for $slug@$commitSha');
-  return client.repositories.getCombinedStatus(slug, commitSha);
+  return client.getJSON<Map<String, dynamic>, MinimalCombinedRepositoryStatus>(
+    '/repos/$slug/commits/$commitSha/status',
+    convert: MinimalCombinedRepositoryStatus.fromJson,
+    statusCode: StatusCodes.OK,
+  );
 }

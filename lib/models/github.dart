@@ -7,16 +7,53 @@ import 'package:tokhub/models/check_status.dart';
 
 const _logger = Logger(['GitHubModels']);
 
+@Entity()
 final class MinimalCheckRun {
-  final int id;
-  final String name;
-  final String headSha;
-  final String detailsUrl;
-  final CheckStatusConclusion conclusion;
-  final DateTime? startedAt;
-  final DateTime? completedAt;
+  @Id(assignable: true)
+  int id;
+  String name;
+  @Index()
+  String headSha;
+  String detailsUrl;
+  @Property(type: PropertyType.date)
+  DateTime? startedAt;
+  @Property(type: PropertyType.date)
+  DateTime? completedAt;
 
-  const MinimalCheckRun({
+  @Transient()
+  CheckStatusConclusion conclusion;
+  MinimalCheckRun()
+      : id = 0,
+        name = '',
+        headSha = '',
+        detailsUrl = '',
+        conclusion = CheckStatusConclusion.unknown,
+        startedAt = null,
+        completedAt = null;
+  factory MinimalCheckRun.fromJson(Map<String, dynamic> json) {
+    return MinimalCheckRun._(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      headSha: json['head_sha'] as String,
+      detailsUrl: json['details_url'] as String,
+      conclusion: CheckStatusConclusion.values.firstWhere(
+        (e) => e.string == json['conclusion'],
+        orElse: () {
+          _logger.w(
+              'Unknown check run conclusion in ${json['name']}: ${json['conclusion']}');
+          return CheckStatusConclusion.unknown;
+        },
+      ),
+      startedAt: json['started_at'] == null
+          ? null
+          : DateTime.parse(json['started_at'] as String),
+      completedAt: json['completed_at'] == null
+          ? null
+          : DateTime.parse(json['completed_at'] as String),
+    );
+  }
+
+  MinimalCheckRun._({
     required this.id,
     required this.name,
     required this.headSha,
@@ -26,69 +63,59 @@ final class MinimalCheckRun {
     required this.completedAt,
   });
 
-  const MinimalCheckRun.empty()
-      : id = 0,
-        name = '',
-        headSha = '',
-        detailsUrl = '',
-        conclusion = CheckStatusConclusion.empty,
-        startedAt = null,
-        completedAt = null;
+  String get conclusionStored => conclusion.name;
 
-  factory MinimalCheckRun.fromJson(Map<String, dynamic> json) =>
-      MinimalCheckRun(
-        id: json['id'] as int,
-        name: json['name'] as String,
-        headSha: json['head_sha'] as String,
-        detailsUrl: json['details_url'] as String,
-        conclusion: CheckStatusConclusion.values.firstWhere(
-          (e) => e.string == json['conclusion'],
-          orElse: () {
-            _logger.w('Unknown check run conclusion: ${json['conclusion']}');
-            return CheckStatusConclusion.unknown;
-          },
-        ),
-        startedAt: json['started_at'] == null
-            ? null
-            : DateTime.parse(json['started_at'] as String),
-        completedAt: json['completed_at'] == null
-            ? null
-            : DateTime.parse(json['completed_at'] as String),
-      );
-
-  MinimalCheckRun copyWith({int? id, String? headSha}) => MinimalCheckRun(
-        id: id ?? this.id,
-        name: name,
-        headSha: headSha ?? this.headSha,
-        detailsUrl: detailsUrl,
-        conclusion: conclusion,
-        startedAt: startedAt,
-        completedAt: completedAt,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'head_sha': headSha,
-        'details_url': detailsUrl,
-        'conclusion': conclusion.string,
-        'started_at': startedAt?.toIso8601String(),
-        'completed_at': completedAt?.toIso8601String(),
-      };
+  set conclusionStored(String value) {
+    conclusion =
+        CheckStatusConclusion.values.firstWhere((e) => e.name == value);
+  }
 }
 
+@Entity()
 final class MinimalPullRequest {
-  final int id;
-  final int number;
-  final bool draft;
-  final String title;
-  final String mergeableState;
-  final String htmlUrl;
-  final MinimalPullRequestHead head;
-  final MinimalUser user;
-  final DateTime? updatedAt;
+  @Id(assignable: true)
+  int id;
+  int number;
+  bool draft;
+  String title;
+  String mergeableState;
+  String htmlUrl;
 
-  const MinimalPullRequest({
+  @Transient()
+  MinimalPullRequestHead head;
+  final ToOne<MinimalUser> user;
+  final ToOne<MinimalRepository> repo;
+
+  @Property(type: PropertyType.date)
+  DateTime? updatedAt;
+  MinimalPullRequest()
+      : id = 0,
+        number = 0,
+        draft = false,
+        title = '',
+        mergeableState = '',
+        htmlUrl = '',
+        head = const MinimalPullRequestHead.empty(),
+        user = ToOne(),
+        repo = ToOne(),
+        updatedAt = null;
+
+  factory MinimalPullRequest.fromJson(Map<String, dynamic> json) {
+    return MinimalPullRequest._(
+      id: json['id'] as int,
+      number: json['number'] as int,
+      draft: json['draft'] as bool,
+      title: json['title'] as String,
+      mergeableState: json['mergeable_state'] as String,
+      htmlUrl: json['html_url'] as String,
+      head: MinimalPullRequestHead.fromJson(json['head']),
+      user: ToOne(target: MinimalUser.fromJson(json['user'])),
+      repo: ToOne(target: MinimalRepository.fromJson(json['base']['repo'])),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
+
+  MinimalPullRequest._({
     required this.id,
     required this.number,
     required this.draft,
@@ -97,67 +124,14 @@ final class MinimalPullRequest {
     required this.htmlUrl,
     required this.head,
     required this.user,
+    required this.repo,
     required this.updatedAt,
   });
 
-  const MinimalPullRequest.empty()
-      : id = 0,
-        number = 0,
-        draft = false,
-        title = '',
-        mergeableState = '',
-        htmlUrl = '',
-        head = const MinimalPullRequestHead.empty(),
-        user = const MinimalUser.empty(),
-        updatedAt = null;
+  String get headStored => jsonEncode(head.toJson());
 
-  factory MinimalPullRequest.fromJson(Map<String, dynamic> json) =>
-      MinimalPullRequest(
-        id: json['id'] as int,
-        number: json['number'] as int,
-        draft: json['draft'] as bool,
-        title: json['title'] as String,
-        mergeableState: json['mergeable_state'] as String,
-        htmlUrl: json['html_url'] as String,
-        head: MinimalPullRequestHead.fromJson(json['head']),
-        user: MinimalUser.fromJson(json['user']),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-      );
-
-  MinimalPullRequest copyWith({
-    int? id,
-    int? number,
-    bool? draft,
-    String? title,
-    String? mergeableState,
-    String? htmlUrl,
-    MinimalPullRequestHead? head,
-    MinimalUser? user,
-    DateTime? updatedAt,
-  }) =>
-      MinimalPullRequest(
-        id: id ?? this.id,
-        number: number ?? this.number,
-        draft: draft ?? this.draft,
-        title: title ?? this.title,
-        mergeableState: mergeableState ?? this.mergeableState,
-        htmlUrl: htmlUrl ?? this.htmlUrl,
-        head: head ?? this.head,
-        user: user ?? this.user,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'number': number,
-        'draft': draft,
-        'title': title,
-        'mergeable_state': mergeableState,
-        'html_url': htmlUrl,
-        'head': head.toJson(),
-        'user': user.toJson(),
-        'updated_at': updatedAt?.toIso8601String(),
-      };
+  set headStored(String value) =>
+      head = MinimalPullRequestHead.fromJson(jsonDecode(value));
 }
 
 final class MinimalPullRequestHead {
@@ -173,127 +147,127 @@ final class MinimalPullRequestHead {
       : ref = '',
         sha = '';
 
-  factory MinimalPullRequestHead.fromJson(Map<String, dynamic> json) =>
-      MinimalPullRequestHead(
-        ref: json['ref'] as String,
-        sha: json['sha'] as String,
-      );
+  factory MinimalPullRequestHead.fromJson(Map<String, dynamic> json) {
+    return MinimalPullRequestHead(
+      ref: json['ref'] as String,
+      sha: json['sha'] as String,
+    );
+  }
 
-  MinimalPullRequestHead copyWith({String? ref, String? sha}) =>
-      MinimalPullRequestHead(
-        ref: ref ?? this.ref,
-        sha: sha ?? this.sha,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'ref': ref,
-        'sha': sha,
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      'ref': ref,
+      'sha': sha,
+    };
+  }
 }
 
-final class MinimalUser {
-  final String login;
-  final String avatarUrl;
+@Entity()
+final class MinimalRepository {
+  @Id(assignable: true)
+  int id;
+  String name;
+  String fullName;
+  String owner;
+  String? description;
 
-  const MinimalUser({
+  final ToMany<MinimalPullRequest> pullRequests = ToMany();
+
+  MinimalRepository()
+      : id = 0,
+        name = '',
+        fullName = '',
+        owner = '',
+        description = '';
+
+  factory MinimalRepository.fromJson(Map<String, dynamic> json) =>
+      MinimalRepository._(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        fullName: json['full_name'] as String,
+        owner: json['owner']['login'] as String,
+        description: json['description'] as String?,
+      );
+
+  MinimalRepository._({
+    required this.id,
+    required this.name,
+    required this.fullName,
+    required this.owner,
+    required this.description,
+  });
+
+  RepositorySlug slug() => RepositorySlug(owner, name);
+}
+
+@Entity()
+final class MinimalUser {
+  @Id(assignable: true)
+  int id;
+  String login;
+  String avatarUrl;
+
+  MinimalUser()
+      : id = 0,
+        login = '',
+        avatarUrl = '';
+
+  factory MinimalUser.fromJson(Map<String, dynamic> json) {
+    return MinimalUser._(
+      id: json['id'] as int,
+      login: json['login'] as String,
+      avatarUrl: json['avatar_url'] as String,
+    );
+  }
+
+  MinimalUser._({
+    required this.id,
     required this.login,
     required this.avatarUrl,
   });
-
-  const MinimalUser.empty()
-      : login = '',
-        avatarUrl = '';
-
-  factory MinimalUser.fromJson(Map<String, dynamic> json) => MinimalUser(
-        login: json['login'] as String,
-        avatarUrl: json['avatar_url'] as String,
-      );
-
-  MinimalUser copyWith({
-    String? login,
-    String? avatarUrl,
-  }) =>
-      MinimalUser(
-        login: login ?? this.login,
-        avatarUrl: avatarUrl ?? this.avatarUrl,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'login': login,
-        'avatar_url': avatarUrl,
-      };
-}
-
-/// [CheckRun]
-@Entity()
-final class StoredCheckRun {
-  @Transient()
-  MinimalCheckRun data = const MinimalCheckRun.empty();
-
-  @Id(assignable: true)
-  int get id => data.id;
-  set id(int value) => data = data.copyWith(id: value);
-
-  String get json => jsonEncode(data.toJson());
-  set json(String value) => data = MinimalCheckRun.fromJson(jsonDecode(value));
-
-  @Index()
-  String? get sha => data.headSha;
-  set sha(String? value) {}
 }
 
 /// [CombinedRepositoryStatus]
 @Entity()
-final class StoredCombinedRepositoryStatus {
-  @Transient()
-  CombinedRepositoryStatus data = CombinedRepositoryStatus();
-
+final class MinimalCombinedRepositoryStatus {
   @Id()
   int id = 0;
-
-  String get json => jsonEncode(data.toJson());
-  set json(String value) =>
-      data = CombinedRepositoryStatus.fromJson(jsonDecode(value));
-
-  @Index()
-  String? get repo => data.repository?.fullName;
-  set repo(String? value) =>
-      value == null ? null : data.repository?.fullName = value;
-
-  @Index()
-  String? get sha => data.sha;
-  set sha(String? value) => data.sha = value;
-}
-
-/// [PullRequest]
-@Entity()
-final class StoredPullRequest {
+  String? state;
+  String? sha;
+  int? totalCount;
   @Transient()
-  MinimalPullRequest data = const MinimalPullRequest.empty();
+  List<RepositoryStatus>? statuses;
 
-  final repo = ToOne<StoredRepository>();
+  final ToOne<MinimalRepository> repository;
 
-  @Id(assignable: true)
-  int get id => data.id;
-  set id(int value) => data = data.copyWith(id: value);
+  MinimalCombinedRepositoryStatus() : repository = ToOne();
 
-  String get json => jsonEncode(data.toJson());
-  set json(String value) =>
-      data = MinimalPullRequest.fromJson(jsonDecode(value));
-}
+  MinimalCombinedRepositoryStatus._({
+    required this.id,
+    required this.state,
+    required this.sha,
+    required this.totalCount,
+    required this.statuses,
+    required this.repository,
+  });
 
-/// [Repository]
-@Entity()
-final class StoredRepository {
-  @Transient()
-  Repository data = Repository();
+  factory MinimalCombinedRepositoryStatus.fromJson(Map<String, dynamic> json) {
+    return MinimalCombinedRepositoryStatus._(
+      id: 0,
+      state: json['state'] as String?,
+      sha: json['sha'] as String?,
+      totalCount: json['total_count'] as int?,
+      statuses: (json['statuses'] as List<dynamic>)
+          .map((e) => RepositoryStatus.fromJson(e))
+          .toList(growable: false),
+      repository: ToOne(target: MinimalRepository.fromJson(json['repository'])),
+    );
+  }
 
-  final pullRequests = ToMany<StoredPullRequest>();
-  @Id(assignable: true)
-  int get id => data.id;
-
-  set id(int value) => data.id = value;
-
-  String get json => jsonEncode(data.toJson());
-  set json(String value) => data = Repository.fromJson(jsonDecode(value));
+  String get statusesStored =>
+      jsonEncode(statuses?.map((e) => e.toJson()).toList(growable: false));
+  set statusesStored(String value) =>
+      statuses = (jsonDecode(value) as List<dynamic>)
+          .map((e) => RepositoryStatus.fromJson(e))
+          .toList(growable: false);
 }

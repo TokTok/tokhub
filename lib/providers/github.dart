@@ -19,7 +19,14 @@ Future<CurrentUser?> currentUser(Ref ref) async {
   }
 
   _logger.d('Fetching current user');
-  return client.users.getCurrentUser();
+  try {
+    final user = await client.users.getCurrentUser();
+    _logger.d('Current user: ${user.login}');
+    return user;
+  } on AccessForbidden catch (e) {
+    _logger.e('Failed to fetch current user: $e');
+    return null;
+  }
 }
 
 // Provider for the GitHub client.

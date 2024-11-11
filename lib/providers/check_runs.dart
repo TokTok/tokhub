@@ -14,62 +14,59 @@ const _logger = Logger(['CheckRunsProvider']);
 const _previewHeader = 'application/vnd.github.antiope-preview+json';
 
 @riverpod
-Future<List<StoredCheckRun>> checkRuns(
+Future<List<MinimalCheckRun>> checkRuns(
   Ref ref,
-  StoredRepository repo,
-  StoredPullRequest pullRequest, {
-  bool force = false,
+  MinimalRepository repo,
+  MinimalPullRequest pullRequest, {
+  required bool force,
 }) async {
-  final slug = repo.data.slug();
-  final commitSha = pullRequest.data.head.sha;
+  final slug = repo.slug();
+  final commitSha = pullRequest.head.sha;
 
   final store = await ref.watch(objectBoxProvider.future);
-  final box = store.box<StoredCheckRun>();
+  final box = store.box<MinimalCheckRun>();
   final fetched =
-      box.query(StoredCheckRun_.sha.equals(commitSha)).build().find();
+      box.query(MinimalCheckRun_.headSha.equals(commitSha)).build().find();
   if (fetched.isNotEmpty) {
     _logger.v('Found ${fetched.length} stored check runs for $slug@$commitSha');
     return fetched;
   }
 
   if (!force &&
-      pullRequest.data.updatedAt!
+      pullRequest.updatedAt!
           .isBefore(DateTime.now().subtract(maxPullRequestAge))) {
-    _logger.v(
-        'Pull request ${repo.data.name}/${pullRequest.data.head.ref} is too old'
+    _logger.v('Pull request ${slug.name}/${pullRequest.head.ref} is too old'
         ', not fetching check runs');
     return const [];
   }
 
   final ids = await ref
-      .watch(_fetchAndStoreCheckRunsProvider(repo, pullRequest).future);
-  return box.getMany(ids).whereType<StoredCheckRun>().toList(growable: false);
+      .watch(_fetchAndStoreCheckRunsProvider(repo, commitSha).future);
+  return box.getMany(ids).whereType<MinimalCheckRun>().toList(growable: false);
 }
 
-Future<void> checkRunsRefresh(
-    WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  ref.invalidate(_fetchAndStoreCheckRunsProvider(repo, pullRequest));
-  await ref.watch(_fetchAndStoreCheckRunsProvider(repo, pullRequest).future);
+Future<void> checkRunsRefresh(WidgetRef ref, MinimalRepository repo,
+    String commitSha) async {
+  ref.invalidate(_fetchAndStoreCheckRunsProvider(repo, commitSha));
+  await ref.watch(_fetchAndStoreCheckRunsProvider(repo, commitSha).future);
 }
 
 @riverpod
 Future<List<int>> _fetchAndStoreCheckRuns(
-    Ref ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  final commitSha = pullRequest.data.head.sha;
-
+    Ref ref, MinimalRepository repo, String commitSha) async {
+  final slug = repo.slug();
   final store = await ref.watch(objectBoxProvider.future);
-  final box = store.box<StoredCheckRun>();
+  final box = store.box<MinimalCheckRun>();
 
   // Fetch new check runs.
   final runs =
-      await ref.watch(_githubCheckRunsProvider(repo, pullRequest).future);
+      await ref.watch(_githubCheckRunsProvider(slug, commitSha).future);
 
   // Delete existing check runs for the same commit.
-  box.query(StoredCheckRun_.sha.equals(commitSha)).build().remove();
+  box.query(MinimalCheckRun_.headSha.equals(commitSha)).build().remove();
 
   // Store the new check runs.
-  final ids = box.putMany(
-      runs.map((run) => StoredCheckRun()..data = run).toList(growable: false));
+  final ids = box.putMany(runs);
   _logger.v('Stored check runs: ${runs.length}');
 
   return ids;
@@ -77,10 +74,7 @@ Future<List<int>> _fetchAndStoreCheckRuns(
 
 @riverpod
 Future<List<MinimalCheckRun>> _githubCheckRuns(
-    Ref ref, StoredRepository repo, StoredPullRequest pullRequest) async {
-  final slug = repo.data.slug();
-  final commitSha = pullRequest.data.head.sha;
-
+    Ref ref, RepositorySlug slug, String commitSha) async {
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
     return const [];

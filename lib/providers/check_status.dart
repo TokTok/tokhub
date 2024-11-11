@@ -14,8 +14,8 @@ const _logger = Logger(['CheckStatusProvider']);
 @riverpod
 Future<List<CheckStatus>> checkStatus(
   Ref ref,
-  StoredRepository repo,
-  StoredPullRequest pullRequest, {
+  MinimalRepository repo,
+  MinimalPullRequest pullRequest, {
   required bool force,
 }) async {
   final statuses = (await ref.watch(combinedRepositoryStatusProvider(
@@ -23,7 +23,6 @@ Future<List<CheckStatus>> checkStatus(
     pullRequest,
     force: force,
   ).future))
-      .data
       .statuses;
   final runs = await ref.watch(checkRunsProvider(
     repo,
@@ -33,15 +32,15 @@ Future<List<CheckStatus>> checkStatus(
 
   final byName = <String, CheckStatus>{};
   for (final run in runs) {
-    byName[run.data.name] = CheckStatus(
-      name: run.data.name,
-      conclusion: run.data.conclusion,
+    byName[run.name] = CheckStatus(
+      name: run.name,
+      conclusion: run.conclusion,
       description: _completedDescription(
-        run.data.conclusion,
-        run.data.startedAt,
-        run.data.completedAt,
+        run.conclusion,
+        run.startedAt,
+        run.completedAt,
       ),
-      detailsUrl: Uri.parse(run.data.detailsUrl),
+      detailsUrl: Uri.parse(run.detailsUrl),
     );
   }
   if (statuses != null) {
@@ -59,11 +58,15 @@ Future<List<CheckStatus>> checkStatus(
   return byName.values.toList(growable: false);
 }
 
-Future<void> checkStatusRefresh(
-    WidgetRef ref, StoredRepository repo, StoredPullRequest pullRequest) async {
+Future<void> checkStatusRefresh(WidgetRef ref, MinimalRepository repo,
+    MinimalPullRequest pullRequest) async {
   await pullRequestRefresh(ref, repo, pullRequest);
-  await combinedRepositoryStatusRefresh(ref, repo, pullRequest);
-  await checkRunsRefresh(ref, repo, pullRequest);
+  final newPr =
+      await ref.watch(pullRequestProvider(repo, pullRequest.number).future);
+  _logger.v(
+      'Refreshing check status for ${repo.slug()}#${newPr.number} (${newPr.head.sha})');
+  await combinedRepositoryStatusRefresh(ref, repo, newPr.head.sha);
+  await checkRunsRefresh(ref, repo, newPr.head.sha);
 }
 
 String _capitalize(String? string) {
