@@ -40,13 +40,13 @@ Future<List<MinimalCheckRun>> checkRuns(
     return const [];
   }
 
-  final ids = await ref
-      .watch(_fetchAndStoreCheckRunsProvider(repo, commitSha).future);
+  final ids =
+      await ref.watch(_fetchAndStoreCheckRunsProvider(repo, commitSha).future);
   return box.getMany(ids).whereType<MinimalCheckRun>().toList(growable: false);
 }
 
-Future<void> checkRunsRefresh(WidgetRef ref, MinimalRepository repo,
-    String commitSha) async {
+Future<void> checkRunsRefresh(
+    WidgetRef ref, MinimalRepository repo, String commitSha) async {
   ref.invalidate(_fetchAndStoreCheckRunsProvider(repo, commitSha));
   await ref.watch(_fetchAndStoreCheckRunsProvider(repo, commitSha).future);
 }

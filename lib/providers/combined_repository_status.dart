@@ -47,8 +47,8 @@ Future<MinimalCombinedRepositoryStatus> combinedRepositoryStatus(
   return box.get(id)!;
 }
 
-Future<void> combinedRepositoryStatusRefresh(WidgetRef ref,
-    MinimalRepository repo, String commitSha) async {
+Future<void> combinedRepositoryStatusRefresh(
+    WidgetRef ref, MinimalRepository repo, String commitSha) async {
   ref.invalidate(
       _fetchAndStoreCombinedRepositoryStatusProvider(repo, commitSha));
   await ref.watch(

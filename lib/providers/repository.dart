@@ -13,11 +13,11 @@ part 'repository.g.dart';
 const _logger = Logger(['RepositoryProvider']);
 
 @riverpod
-Future<List<MinimalRepository>> repositories(Ref ref, {required String org}) async {
+Future<List<MinimalRepository>> repositories(Ref ref,
+    {required String org}) async {
   final store = await ref.watch(objectBoxProvider.future);
   final box = store.box<MinimalRepository>();
-  final stored =
-      box.query(MinimalRepository_.owner.equals(org)).build().find();
+  final stored = box.query(MinimalRepository_.owner.equals(org)).build().find();
   if (stored.isNotEmpty) {
     return stored;
   }
@@ -31,7 +31,8 @@ Future<void> repositoriesRefresh(WidgetRef ref, {required String org}) async {
 }
 
 @riverpod
-Future<List<int>> _fetchAndStoreRepositories(Ref ref, {required String org}) async {
+Future<List<int>> _fetchAndStoreRepositories(Ref ref,
+    {required String org}) async {
   final repos = await ref.watch(_githubRepositoriesProvider(org: org).future);
   final store = await ref.watch(objectBoxProvider.future);
   final box = store.box<MinimalRepository>();
@@ -45,7 +46,8 @@ Future<List<int>> _fetchAndStoreRepositories(Ref ref, {required String org}) asy
 }
 
 @riverpod
-Future<List<MinimalRepository>> _githubRepositories(Ref ref, {required String org}) async {
+Future<List<MinimalRepository>> _githubRepositories(Ref ref,
+    {required String org}) async {
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
     return const [];

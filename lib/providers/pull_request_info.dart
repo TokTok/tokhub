@@ -23,8 +23,7 @@ Future<List<PullRequestInfo>> pullRequestInfo(
 Future<List<(MinimalRepository, List<PullRequestInfo>)>> pullRequestInfos(
   Ref ref, {
   required String org,
-  }
-) async {
+}) async {
   final repos = await ref.watch(repositoriesProvider(org: org).future);
   repos.sort((a, b) => a.name.compareTo(b.name));
   return (await Future.wait(repos.map((repo) async =>

@@ -32,6 +32,7 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - run: ./tools/prepare
       - run: flutter analyze .
 
   test:
@@ -44,6 +45,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: sudo apt-get install -y libsqlite3-dev
+      - run: ./tools/prepare
       - run: flutter test --coverage
       - run: bash <(curl -s https://codecov.io/bash)
 
@@ -56,10 +58,11 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - run: ./tools/prepare
       - run: flutter build apk
       - uses: actions/upload-artifact@v4
         with:
-          name: btox-android.apk
+          name: tokhub-android.apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
   linux-build:
@@ -72,12 +75,13 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build libgtk-3-dev
+      - run: ./tools/prepare
       - run: flutter build linux
-      - run: tar zcf btox-linux.tar.gz -C build/linux/x64/release bundle
+      - run: tar zcf tokhub-linux.tar.gz -C build/linux/x64/release bundle
       - uses: actions/upload-artifact@v4
         with:
-          name: btox-linux.tar.gz
-          path: btox-linux.tar.gz
+          name: tokhub-linux.tar.gz
+          path: tokhub-linux.tar.gz
 
   ios-build:
     runs-on: macos-13
@@ -88,16 +92,17 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - run: ./tools/prepare
       - run: flutter build ios --no-codesign
       - run: |
           mkdir Payload
           mv build/ios/iphoneos/Runner.app Payload
-          zip -r btox-ios.zip Payload
-          mv btox-ios.zip btox-ios.ipa
+          zip -r tokhub-ios.zip Payload
+          mv tokhub-ios.zip tokhub-ios.ipa
       - uses: actions/upload-artifact@v4
         with:
-          name: btox-ios.ipa
-          path: btox-ios.ipa
+          name: tokhub-ios.ipa
+          path: tokhub-ios.ipa
 
   macos-build:
     runs-on: macos-14
@@ -108,26 +113,13 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - run: ./tools/prepare
       - run: flutter build macos
-      - run: tar zcf btox-macos.tar.gz -C build/macos/Build/Products/Release btox.app
+      - run: tar zcf tokhub-macos.tar.gz -C build/macos/Build/Products/Release tokhub.app
       - uses: actions/upload-artifact@v4
         with:
-          name: btox-macos.tar.gz
-          path: btox-macos.tar.gz
-
-  web-build:
-    runs-on: windows-2022
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: flutter build web
+          name: tokhub-macos.tar.gz
+          path: tokhub-macos.tar.gz
 
   windows-build:
     runs-on: windows-2022
@@ -141,8 +133,9 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - run: ./tools/prepare
       - run: flutter build windows
       - uses: actions/upload-artifact@v4
         with:
-          name: btox-windows-x64.exe
-          path: build/windows/x64/runner/Release/btox.exe
+          name: tokhub-windows-x64.exe
+          path: build/windows/x64/runner/Release/tokhub.exe
