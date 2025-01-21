@@ -121,6 +121,21 @@ jobs:
           name: tokhub-macos.tar.gz
           path: tokhub-macos.tar.gz
 
+  web-build:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: ./tools/prepare-web
+      - run: flutter build web
+
   windows-build:
     runs-on: windows-2022
     defaults:

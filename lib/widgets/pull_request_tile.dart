@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:tokhub/models/check_status.dart';
+import 'package:tokhub/models/github.dart';
 import 'package:tokhub/models/pull_request_info.dart';
 import 'package:tokhub/providers/check_status.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,9 +22,8 @@ final class PullRequestTile extends HookConsumerWidget {
     final textStyle = pullRequest.draft ? TextStyle(color: Colors.grey) : null;
     final force = useState(false);
     final checks = ref.watch(checkStatusProvider(
-      pullRequest.repo,
-      pullRequest.pr,
-      force: force.value,
+      pullRequest.repo.slug(),
+      pullRequest.pr.head.sha,
     ));
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
@@ -140,11 +140,14 @@ final class PullRequestTile extends HookConsumerWidget {
               ],
             ),
             IconButton(
-              onPressed: () => checkStatusRefresh(
-                ref,
-                pullRequest.repo,
-                pullRequest.pr,
-              ),
+              onPressed: () async {
+                await checkStatusRefresh(
+                  ref,
+                  pullRequest.repo.slug(),
+                  pullRequest.pr.head.sha,
+                  pullRequest.pr.number,
+                );
+              },
               icon: Icon(Icons.refresh),
             ),
           ],

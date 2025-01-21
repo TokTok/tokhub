@@ -1,4 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:tokhub/models/json_enum.dart';
+
+enum CheckRunConclusion implements JsonEnum<CheckRunConclusion> {
+  success('success'),
+  failure('failure'),
+  neutral('neutral'),
+  cancelled('cancelled'),
+  timedOut('timed_out'),
+  skipped('skipped'),
+  actionRequired('action_required');
+
+  @override
+  final String string;
+
+  const CheckRunConclusion(this.string);
+}
 
 final class CheckStatus {
   final String name;
@@ -14,7 +30,7 @@ final class CheckStatus {
   });
 }
 
-enum CheckStatusConclusion {
+enum CheckStatusConclusion implements JsonEnum<CheckStatusConclusion> {
   unknown('unknown', 'Unknown', Icons.warning, Colors.red),
   loading('loading', 'Loading', Icons.timer, Colors.blue),
   success('success', 'Successful in', Icons.check_circle, Colors.green),
@@ -28,6 +44,7 @@ enum CheckStatusConclusion {
   failure('failure', 'Failing after', Icons.error_outline, Colors.red),
   empty('empty', 'Unknown after', Icons.help, Colors.grey);
 
+  @override
   final String string;
   final String title;
   final IconData icon;

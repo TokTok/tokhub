@@ -2,6 +2,9 @@
 
 set -eux
 
+# Upgrade versions.
+flutter pub upgrade --major-versions
+
 # Make sure we have all packages downloaded.
 flutter pub get
 

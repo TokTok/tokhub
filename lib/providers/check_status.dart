@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:github/github.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:tokhub/logger.dart';
 import 'package:tokhub/models/check_status.dart';
-import 'package:tokhub/models/github.dart';
-import 'package:tokhub/providers/check_runs.dart';
-import 'package:tokhub/providers/combined_repository_status.dart';
-import 'package:tokhub/providers/pull_request.dart';
+import 'package:tokhub/providers/repos/commits/check_runs.dart';
+import 'package:tokhub/providers/repos/commits/status.dart';
+import 'package:tokhub/providers/repos/pulls.dart';
 
 part 'check_status.g.dart';
 
@@ -13,60 +13,52 @@ const _logger = Logger(['CheckStatusProvider']);
 
 @riverpod
 Future<List<CheckStatus>> checkStatus(
-  Ref ref,
-  MinimalRepository repo,
-  MinimalPullRequest pullRequest, {
-  required bool force,
-}) async {
-  final statuses = (await ref.watch(combinedRepositoryStatusProvider(
-    repo,
-    pullRequest,
-    force: force,
-  ).future))
-      .statuses;
+    Ref ref, RepositorySlug slug, String headSha) async {
+  final statuses = await ref.watch(combinedRepositoryStatusProvider(
+    slug,
+    headSha,
+  ).future);
   final runs = await ref.watch(checkRunsProvider(
-    repo,
-    pullRequest,
-    force: force,
+    slug,
+    headSha,
   ).future);
 
   final byName = <String, CheckStatus>{};
   for (final run in runs) {
     byName[run.name] = CheckStatus(
       name: run.name,
-      conclusion: run.conclusion,
+      conclusion: run.conclusion ?? CheckStatusConclusion.empty,
       description: _completedDescription(
-        run.conclusion,
+        run.conclusion ?? CheckStatusConclusion.empty,
         run.startedAt,
         run.completedAt,
       ),
       detailsUrl: Uri.parse(run.detailsUrl),
     );
   }
-  if (statuses != null) {
-    for (final status in statuses) {
-      byName[status.context!] = CheckStatus(
-        name: status.context!,
-        conclusion: _statusConclusion(status.state),
-        description: '${_capitalize(status.state)} — ${status.description}',
-        detailsUrl:
-            status.targetUrl == null ? null : Uri.parse(status.targetUrl!),
-      );
-    }
+  for (final status in statuses) {
+    byName[status.context] = CheckStatus(
+      name: status.context,
+      conclusion: _statusConclusion(status.state),
+      description: status.description == null
+          ? _capitalize(status.state)
+          : '${_capitalize(status.state)} — ${status.description}',
+      detailsUrl:
+          status.targetUrl == null ? null : Uri.parse(status.targetUrl!),
+    );
   }
 
   return byName.values.toList(growable: false);
 }
 
-Future<void> checkStatusRefresh(WidgetRef ref, MinimalRepository repo,
-    MinimalPullRequest pullRequest) async {
-  await pullRequestRefresh(ref, repo, pullRequest);
-  final newPr =
-      await ref.watch(pullRequestProvider(repo, pullRequest.number).future);
+Future<void> checkStatusRefresh(
+    WidgetRef ref, RepositorySlug slug, String headSha, int pullRequest) async {
+  await pullRequestRefresh(ref, slug, pullRequest);
+  final newPr = await ref.watch(pullRequestProvider(slug, pullRequest).future);
   _logger.v(
-      'Refreshing check status for ${repo.slug()}#${newPr.number} (${newPr.head.sha})');
-  await combinedRepositoryStatusRefresh(ref, repo, newPr.head.sha);
-  await checkRunsRefresh(ref, repo, newPr.head.sha);
+      'Refreshing check status for $slug#${newPr.number} (${newPr.head.sha})');
+  await combinedRepositoryStatusRefresh(ref, slug, newPr.head.sha);
+  await checkRunsRefresh(ref, slug, newPr.head.sha);
 }
 
 String _capitalize(String? string) {

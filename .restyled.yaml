@@ -1,0 +1,8 @@
+---
+exclude:
+  - "LICENSE"
+  # Generated files.
+  - "linux/**/*.cc"
+  - "linux/**/*.h"
+  - "windows/**/*.cc"
+  - "windows/**/*.h"

@@ -2,6 +2,12 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:circular_buffer/circular_buffer.dart';
 
+String _callerFileLine() {
+  final stack = StackTrace.current.toString().split('\n');
+  final caller = stack.firstWhere((line) => !line.contains('logger.dart'));
+  return caller.split(' ').last;
+}
+
 final class Logger {
   static const _bufferSize = 1000;
   static final CircularBuffer<LogLine> _log = CircularBuffer(_bufferSize);
@@ -35,7 +41,8 @@ final class Logger {
 
   void _logLine(LogLevel level, String text, [StackTrace? stackTrace]) {
     if (level == LogLevel.verbose && !verbose) return;
-    final line = '${level.name[0].toUpperCase()} $tags $text';
+    final line =
+        '${_callerFileLine()}: ${level.name[0].toUpperCase()} $tags $text';
     if (stackTrace != null) {
       debugPrintStack(stackTrace: stackTrace, label: line);
       _log.add(LogLine(clock.now(), level, tags, text, stackTrace));
@@ -43,6 +50,18 @@ final class Logger {
       debugPrint(line);
       _log.add(LogLine(clock.now(), level, tags, text));
     }
+  }
+
+  T Function(A) catching<T, A>(T Function(A) f) {
+    return (A a) {
+      try {
+        v('Calling $f with $a');
+        return f(a);
+      } catch (exn, stackTrace) {
+        e('Caught exception $exn', stackTrace);
+        rethrow;
+      }
+    };
   }
 }
 

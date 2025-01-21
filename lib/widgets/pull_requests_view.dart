@@ -1,13 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:tokhub/db/database.dart';
 import 'package:tokhub/logger.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/models/pull_request_info.dart';
-import 'package:tokhub/providers/pull_request.dart';
-import 'package:tokhub/providers/repository.dart';
+import 'package:tokhub/providers/orgs/repos.dart';
+import 'package:tokhub/providers/repos/pulls.dart';
 import 'package:tokhub/widgets/pull_request_tile.dart';
 
+part 'pull_requests_view.g.dart';
+
 const _logger = Logger(['PullRequestsView']);
+
+@riverpod
+Future<List<(MinimalRepositoryData, List<MinimalPullRequestData>)>>
+    reposWithPulls(Ref ref, String org, {bool includeEmpty = false}) async {
+  final repos = await ref.watch(repositoriesProvider(org).future);
+  final pairs = await Future.wait(repos.map((repo) async {
+    final prs = await ref.watch(pullRequestsProvider(repo.slug()).future);
+    return (repo, prs);
+  }));
+  if (includeEmpty) {
+    return pairs;
+  }
+  return pairs.where((pair) => pair.$2.isNotEmpty).toList(growable: false);
+}
 
 final class PullRequestsView extends ConsumerWidget {
   final String org;
@@ -16,19 +34,15 @@ final class PullRequestsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(repositoriesProvider(org: org)).when(
+    return ref.watch(reposWithPullsProvider(org)).when(
         loading: () => const CircularProgressIndicator(),
         error: (error, stacktrace) => Text('Error: $error\n$stacktrace'),
         data: (data) => _build(data, ref));
   }
 
-  Widget _build(List<MinimalRepository> repositories, WidgetRef ref) {
-    final reposWithPrs = repositories
-        .where((repo) => repo.pullRequests.isNotEmpty)
-        .toList(growable: false);
-    reposWithPrs.sort((a, b) => a.name.compareTo(b.name));
-    _logger.v(
-        'Building pull requests view with ${reposWithPrs.length} repositories');
+  Widget _build(
+      List<(MinimalRepositoryData, List<MinimalPullRequestData>)> repos,
+      WidgetRef ref) {
     const columnWidths = {
       0: FixedColumnWidth(48),
       1: FixedColumnWidth(36),
@@ -59,44 +73,40 @@ final class PullRequestsView extends ConsumerWidget {
         const Divider(),
         Expanded(
           child: ListView.builder(
-            itemCount: reposWithPrs.length,
+            itemCount: repos.length,
             itemBuilder: (context, index) {
-              final repo = reposWithPrs[index];
-              final prs = repo.pullRequests
-                  .map((spr) => PullRequestInfo.from(repo, spr))
-                  .toList(growable: false);
-              prs.sort((a, b) => b.number.compareTo(a.number));
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+              final (repo, prs) = repos[index];
+              return ExpansionTile(
+                enabled: prs.isNotEmpty,
                 title: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Text(repo.name),
+                    Text('${repo.name} (${prs.length})'),
                     IconButton(
                       icon: const Icon(Icons.refresh),
                       onPressed: () async {
-                        await pullRequestsRefresh(ref, repo);
+                        _logger
+                            .v('Refreshing pull requests for ${repo.slug()}');
+                        await pullRequestsRefresh(ref, repo.slug());
                       },
                     ),
                   ],
                 ),
-                subtitle: Column(
-                  children: [
-                    for (final pr in prs)
-                      ref.watch(pullRequestProvider(repo, pr.number)).when(
-                            loading: () => PullRequestTile(
-                              pullRequest: pr,
-                              columnWidths: columnWidths,
-                            ),
-                            error: (error, stacktrace) =>
-                                Text('Error: $error $stacktrace'),
-                            data: (spr) => PullRequestTile(
-                              pullRequest: PullRequestInfo.from(repo, spr),
-                              columnWidths: columnWidths,
-                            ),
+                children: [
+                  for (final pr in prs)
+                    ref.watch(pullRequestProvider(repo.slug(), pr.number)).when(
+                          loading: () => PullRequestTile(
+                            pullRequest: PullRequestInfo.from(repo, pr),
+                            columnWidths: columnWidths,
                           ),
-                  ],
-                ),
+                          error: (error, stacktrace) =>
+                              Text('Error: $error $stacktrace'),
+                          data: (spr) => PullRequestTile(
+                            pullRequest: PullRequestInfo.from(repo, spr),
+                            columnWidths: columnWidths,
+                          ),
+                        ),
+                ],
               );
             },
           ),

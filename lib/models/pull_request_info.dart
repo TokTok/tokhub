@@ -1,9 +1,9 @@
-import 'package:tokhub/models/github.dart';
+import 'package:tokhub/db/database.dart';
 
 final class PullRequestInfo {
   /// The repository to which the pull request belongs.
-  final MinimalRepository repo;
-  final MinimalPullRequest pr;
+  final MinimalRepositoryData repo;
+  final MinimalPullRequestData pr;
 
   /// The assigned pull request issue number.
   final int number;
@@ -46,14 +46,15 @@ final class PullRequestInfo {
     required this.commitSha,
   });
 
-  factory PullRequestInfo.from(MinimalRepository repo, MinimalPullRequest pr) {
+  factory PullRequestInfo.from(
+      MinimalRepositoryData repo, MinimalPullRequestData pr) {
     return PullRequestInfo(
       repo: repo,
       pr: pr,
       number: pr.number,
       url: Uri.parse(pr.htmlUrl),
-      user: pr.user.target!.login,
-      avatar: pr.user.target!.avatarUrl,
+      user: pr.user.login,
+      avatar: pr.user.avatarUrl,
       branch: pr.head.ref,
       title: pr.title,
       state: PullRequestMergeableState.values.firstWhere(
