@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:circular_buffer/circular_buffer.dart';
@@ -55,7 +57,7 @@ final class Logger {
   T Function(A) catching<T, A>(T Function(A) f) {
     return (A a) {
       try {
-        v('Calling $f with $a');
+        v('Calling $f with ${a.toString().substring(0, min(20, a.toString().length))}');
         return f(a);
       } catch (exn, stackTrace) {
         e('Caught exception $exn', stackTrace);

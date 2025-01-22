@@ -1,6 +1,7 @@
 enum MainView {
-  home(MainViewSection.main, 'Home', '🏠'),
+  triage(MainViewSection.main, 'Triage', '🏠'),
   repos(MainViewSection.main, 'Repositories', '📦'),
+  issues(MainViewSection.main, 'Issues', '🐛'),
   pullRequests(MainViewSection.main, 'Pull Requests', '🔀'),
   settings(MainViewSection.settings, 'Settings', '🛠️', push: true),
   logs(MainViewSection.debug, 'Logs', '🪵');

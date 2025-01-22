@@ -35,6 +35,7 @@ final class PullRequestsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ref.watch(reposWithPullsProvider(org)).when(
+        skipLoadingOnReload: true,
         loading: () => const CircularProgressIndicator(),
         error: (error, stacktrace) => Text('Error: $error\n$stacktrace'),
         data: (data) => _build(data, ref));

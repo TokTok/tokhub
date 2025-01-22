@@ -17,11 +17,11 @@ final class Settings extends _$Settings {
 
   @override
   Future<SettingsState> build() async {
-    final db = await ref.read(databaseProvider.future);
+    final db = await ref.watch(databaseProvider.future);
     return await db.select(db.settingsTable).getSingle().then((row) {
       return SettingsState.fromJson(row.toJson());
     }).catchError((e) {
-      _logger.e('Error loading settings: $e');
+      _logger.d('No settings; creating fresh settings: $e');
       return const SettingsState();
     });
   }

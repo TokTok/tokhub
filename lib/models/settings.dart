@@ -7,7 +7,7 @@ part 'settings.g.dart';
 @freezed
 sealed class SettingsState with _$SettingsState {
   const factory SettingsState({
-    @Default(MainView.home) MainView mainView,
+    @Default(MainView.triage) MainView mainView,
     String? token,
   }) = _Settings;
 

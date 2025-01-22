@@ -3,17 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tokhub/logger.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/models/settings.dart';
+import 'package:tokhub/models/views.dart';
 import 'package:tokhub/pages/settings_page.dart';
 import 'package:tokhub/providers/database.dart';
-import 'package:tokhub/providers/github.dart';
-import 'package:tokhub/providers/repos/pulls.dart';
 import 'package:tokhub/providers/orgs/repos.dart';
+import 'package:tokhub/providers/repos/issues.dart';
+import 'package:tokhub/providers/repos/pulls.dart';
 import 'package:tokhub/providers/settings.dart';
-import 'package:tokhub/models/views.dart';
-import 'package:tokhub/widgets/home_view.dart';
-import 'package:tokhub/widgets/debug_log_view.dart';
-import 'package:tokhub/widgets/pull_requests_view.dart';
-import 'package:tokhub/widgets/repositories_view.dart';
+import 'package:tokhub/providers/user.dart';
+import 'package:tokhub/views/debug_log_view.dart';
+import 'package:tokhub/views/issues_view.dart';
+import 'package:tokhub/views/pull_requests_view.dart';
+import 'package:tokhub/views/repositories_view.dart';
+import 'package:tokhub/views/triage_view.dart';
+
+const _clearDatabaseOnRefresh = false;
 
 class HomePage extends ConsumerWidget {
   static const org = 'TokTok';
@@ -78,22 +82,37 @@ class HomePage extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           debugPrint('Refreshing');
-          final db = await ref.read(databaseProvider.future);
-          await db.clear();
-          await repositoriesRefresh(ref, org);
-          for (final repo
-              in await ref.watch(repositoriesProvider(org).future)) {
+          if (_clearDatabaseOnRefresh) {
+            final db = await ref.read(databaseProvider.future);
+            await db.clear();
+          }
+          final repos = await repositoriesRefresh(ref, org);
+          for (final repo in repos) {
+            await issuesRefresh(ref, repo.slug());
             await pullRequestsRefresh(ref, repo.slug());
-            for (final pr
-                in await ref.watch(pullRequestsProvider(repo.slug()).future)) {
-              await pullRequestRefresh(ref, repo.slug(), pr.number);
-            }
           }
         },
         tooltip: 'Refresh',
         child: const Icon(Icons.refresh),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  Widget _buildBody(MainView view) {
+    switch (view) {
+      case MainView.triage:
+        return const TriageView();
+      case MainView.repos:
+        return const RepositoriesView(org: org);
+      case MainView.issues:
+        return const IssuesView(org: org);
+      case MainView.pullRequests:
+        return const PullRequestsView(org: org);
+      case MainView.settings:
+        return const SettingsPage();
+      case MainView.logs:
+        return DebugLogView(log: Logger.log);
+    }
   }
 
   List<Widget> _buildDrawerItems(
@@ -126,20 +145,5 @@ class HomePage extends ConsumerWidget {
             ));
     }
     return widgets;
-  }
-
-  Widget _buildBody(MainView view) {
-    switch (view) {
-      case MainView.home:
-        return const HomeView();
-      case MainView.repos:
-        return const RepositoriesView(org: org);
-      case MainView.pullRequests:
-        return const PullRequestsView(org: org);
-      case MainView.settings:
-        return const SettingsPage();
-      case MainView.logs:
-        return DebugLogView(log: Logger.log);
-    }
   }
 }

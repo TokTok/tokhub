@@ -28,25 +28,23 @@ Future<List<MinimalCheckRunData>> checkRuns(
   return fetched;
 }
 
-Future<void> checkRunsRefresh(
+Future<List<MinimalCheckRunData>> checkRunsRefresh(
     WidgetRef ref, RepositorySlug slug, String commitSha) async {
   ref.invalidate(_fetchAndStoreCheckRunsProvider(slug, commitSha));
-  await ref.watch(_fetchAndStoreCheckRunsProvider(slug, commitSha).future);
+  await ref.read(_fetchAndStoreCheckRunsProvider(slug, commitSha).future);
+  return ref.refresh(checkRunsProvider(slug, commitSha).future);
 }
 
 @riverpod
 Future<void> _fetchAndStoreCheckRuns(
     Ref ref, RepositorySlug slug, String commitSha) async {
-  // Fetch new check runs.
   final runs =
       await ref.watch(_githubCheckRunsProvider(slug, commitSha).future);
-
-  // Store the new check runs.
   final db = await ref.watch(databaseProvider.future);
 
-  for (final run in runs) {
-    await db.into(db.minimalCheckRun).insertOnConflictUpdate(run);
-  }
+  await db.batch((b) {
+    b.insertAllOnConflictUpdate(db.minimalCheckRun, runs);
+  });
 }
 
 @riverpod

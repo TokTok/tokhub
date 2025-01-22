@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:tokhub/models/check_status.dart';
 import 'package:tokhub/models/github.dart';
@@ -7,7 +6,7 @@ import 'package:tokhub/models/pull_request_info.dart';
 import 'package:tokhub/providers/check_status.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-final class PullRequestTile extends HookConsumerWidget {
+final class PullRequestTile extends ConsumerWidget {
   final Map<int, TableColumnWidth> columnWidths;
   final PullRequestInfo pullRequest;
 
@@ -20,7 +19,6 @@ final class PullRequestTile extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textStyle = pullRequest.draft ? TextStyle(color: Colors.grey) : null;
-    final force = useState(false);
     final checks = ref.watch(checkStatusProvider(
       pullRequest.repo.slug(),
       pullRequest.pr.head.sha,
@@ -60,7 +58,7 @@ final class PullRequestTile extends HookConsumerWidget {
               triggerMode: TooltipTriggerMode.tap,
               child: Text(pullRequest.state.emoji),
             ),
-            _combinedStatusTooltip(checks),
+            _statusTooltip(checks),
           ]),
         ],
       ),
@@ -68,31 +66,40 @@ final class PullRequestTile extends HookConsumerWidget {
         checks.when(
           loading: () => const LinearProgressIndicator(),
           error: (error, stacktrace) => Text('Error: $error\n$stacktrace'),
-          data: (status) => _buildCheckStatus(context, ref, status, force),
+          data: (status) => Padding(
+            padding: const EdgeInsets.only(right: 28.0),
+            child: _buildCheckStatus(context, ref, status),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildCheckStatus(BuildContext context, WidgetRef ref,
-      List<CheckStatus> checks, ValueNotifier<bool> force) {
+  Widget _buildCheckStatus(
+      BuildContext context, WidgetRef ref, List<CheckStatus> checks) {
     const outerColumnWidths = {
       1: FixedColumnWidth(32),
     };
+    final refreshButton = IconButton(
+      onPressed: () async {
+        await checkStatusRefresh(
+          ref,
+          pullRequest.repo.slug(),
+          pullRequest.pr.number,
+        );
+      },
+      icon: const Icon(Icons.refresh),
+    );
     if (checks.isEmpty) {
       return Table(
         columnWidths: outerColumnWidths,
         children: [
           TableRow(children: [
-            Text('No checks found',
-                style: Theme.of(context).textTheme.bodyMedium),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              onPressed: () {
-                force.value = true;
-              },
-              icon: const Icon(Icons.refresh),
+            Text(
+              'No checks found',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
+            refreshButton,
           ]),
         ],
       );
@@ -139,25 +146,15 @@ final class PullRequestTile extends HookConsumerWidget {
                   ),
               ],
             ),
-            IconButton(
-              onPressed: () async {
-                await checkStatusRefresh(
-                  ref,
-                  pullRequest.repo.slug(),
-                  pullRequest.pr.head.sha,
-                  pullRequest.pr.number,
-                );
-              },
-              icon: Icon(Icons.refresh),
-            ),
+            refreshButton,
           ],
         ),
       ],
     );
   }
 
-  Widget _combinedStatusTooltip(AsyncValue<List<CheckStatus>> checks) {
-    final combinedStatus = checks.when(
+  Widget _statusTooltip(AsyncValue<List<CheckStatus>> checks) {
+    final status = checks.when(
       data: (statuses) => statuses.map((e) => e.conclusion).fold(
           CheckStatusConclusion.unknown,
           (value, element) => value.index >= element.index ? value : element),
@@ -165,11 +162,11 @@ final class PullRequestTile extends HookConsumerWidget {
       error: (error, stacktrace) => CheckStatusConclusion.actionRequired,
     );
     return Tooltip(
-      message: combinedStatus.name,
+      message: status.name,
       triggerMode: TooltipTriggerMode.tap,
       child: Icon(
-        combinedStatus.icon,
-        color: combinedStatus.color,
+        status.icon,
+        color: status.color,
       ),
     );
   }

@@ -9,10 +9,10 @@ import 'package:tokhub/providers/github.dart';
 
 part 'status.g.dart';
 
-const _logger = Logger(['CombinedRepositoryStatusProvider']);
+const _logger = Logger(['CommitStatusProvider']);
 
 @riverpod
-Future<List<MinimalCommitStatusData>> combinedRepositoryStatus(
+Future<List<MinimalCommitStatusData>> commitStatus(
     Ref ref, RepositorySlug slug, String headSha) async {
   final db = await ref.watch(databaseProvider.future);
   final fetched = await (db.select(db.minimalCommitStatus)
@@ -21,36 +21,32 @@ Future<List<MinimalCommitStatusData>> combinedRepositoryStatus(
               status.headSha.equals(headSha);
         }))
       .get();
-  _logger.v('Found stored combined repository status for $slug@$headSha '
+  _logger.v('Found stored commit status for $slug@$headSha '
       '(${fetched.length} statuses)');
   return fetched;
 }
 
-Future<void> combinedRepositoryStatusRefresh(
+Future<List<MinimalCommitStatusData>> commitStatusRefresh(
     WidgetRef ref, RepositorySlug slug, String commitSha) async {
-  ref.invalidate(
-      _fetchAndStoreCombinedRepositoryStatusProvider(slug, commitSha));
-  await ref.watch(
-      _fetchAndStoreCombinedRepositoryStatusProvider(slug, commitSha).future);
+  ref.invalidate(_fetchAndStoreCommitStatusProvider(slug, commitSha));
+  await ref.read(_fetchAndStoreCommitStatusProvider(slug, commitSha).future);
+  return ref.refresh(commitStatusProvider(slug, commitSha).future);
 }
 
 @riverpod
-Future<void> _fetchAndStoreCombinedRepositoryStatus(
+Future<void> _fetchAndStoreCommitStatus(
     Ref ref, RepositorySlug slug, String commitSha) async {
-  // Fetch the combined status from GitHub.
-  final statuses = await ref
-      .watch(_githubCombinedRepositoryStatusProvider(slug, commitSha).future);
-
+  final statuses =
+      await ref.watch(_githubCommitStatusProvider(slug, commitSha).future);
   final db = await ref.watch(databaseProvider.future);
 
-  // Store the new statuses.
-  for (final status in statuses) {
-    await db.into(db.minimalCommitStatus).insertOnConflictUpdate(status);
-  }
+  await db.batch((b) {
+    b.insertAllOnConflictUpdate(db.minimalCommitStatus, statuses);
+  });
 }
 
 @riverpod
-Future<List<MinimalCommitStatusData>> _githubCombinedRepositoryStatus(
+Future<List<MinimalCommitStatusData>> _githubCommitStatus(
     Ref ref, RepositorySlug slug, String commitSha) async {
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {

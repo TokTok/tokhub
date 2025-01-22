@@ -6,7 +6,6 @@ import 'package:tokhub/db/database.dart';
 import 'package:tokhub/logger.dart';
 import 'package:tokhub/providers/database.dart';
 import 'package:tokhub/providers/github.dart';
-import 'package:tokhub/providers/orgs/repos.dart';
 
 part 'pulls.g.dart';
 
@@ -14,15 +13,23 @@ const _logger = Logger(['PullRequestProvider']);
 
 @riverpod
 Future<MinimalPullRequestData> pullRequest(
-    Ref ref, RepositorySlug slug, int number) async {
+    Ref ref, RepositorySlug slug, int number,
+    {bool recursed = false}) async {
   final db = await ref.watch(databaseProvider.future);
   final fetched = await (db.select(db.minimalPullRequest)
         ..where((pr) {
-          return pr.repoSlug.equals(slug.fullName) &
-              pr.number.equals(number) &
-              pr.mergeableState.isNotNull();
+          return pr.repoSlug.equals(slug.fullName) & pr.number.equals(number);
         }))
       .getSingle();
+  if (fetched.mergeableState == null) {
+    if (recursed) {
+      _logger
+          .e('GitHub: pull request $slug#$number is missing mergeable state');
+      return fetched;
+    }
+    await ref.watch(_fetchAndStorePullRequestProvider(slug, number).future);
+    return pullRequest(ref, slug, number, recursed: true);
+  }
   _logger.v(
       'Found stored pull request for $slug#$number (${fetched.mergeableState})');
   return fetched;
@@ -43,7 +50,6 @@ Future<List<MinimalPullRequestData>> pullRequests(
     Ref ref, RepositorySlug slug) async {
   final db = await ref.watch(databaseProvider.future);
 
-  _logger.v('Fetching pull requests for $slug');
   final fetched = (await (db.select(db.minimalPullRequest)
             ..orderBy([(pr) => OrderingTerm.desc(pr.number)]))
           .get())
@@ -55,11 +61,11 @@ Future<List<MinimalPullRequestData>> pullRequests(
   return fetched;
 }
 
-Future<void> pullRequestsRefresh(WidgetRef ref, RepositorySlug slug) async {
+Future<List<MinimalPullRequestData>> pullRequestsRefresh(
+    WidgetRef ref, RepositorySlug slug) async {
   ref.invalidate(_fetchAndStorePullRequestsProvider(slug));
-  await ref.watch(_fetchAndStorePullRequestsProvider(slug).future);
-  ref.invalidate(pullRequestsProvider(slug));
-  ref.invalidate(repositoriesProvider(slug.owner));
+  await ref.read(_fetchAndStorePullRequestsProvider(slug).future);
+  return ref.refresh(pullRequestsProvider(slug).future);
 }
 
 @riverpod
@@ -81,14 +87,11 @@ Future<void> _fetchAndStorePullRequest(
 @riverpod
 Future<void> _fetchAndStorePullRequests(Ref ref, RepositorySlug slug) async {
   final db = await ref.watch(databaseProvider.future);
-
-  // Fetch new pull requests.
   final prs = await ref.watch(_githubPullRequestsProvider(slug).future);
 
-  // Update pull requests.
-  for (final pr in prs) {
-    await db.into(db.minimalPullRequest).insertOnConflictUpdate(pr);
-  }
+  await db.batch((b) {
+    b.insertAllOnConflictUpdate(db.minimalPullRequest, prs);
+  });
 
   _logger.v('Stored ${prs.length} pull requests for $slug');
 }

@@ -10,6 +10,8 @@ part 'database.g.dart';
 @DriftDatabase(tables: [
   MinimalCheckRun,
   MinimalCommitStatus,
+  MinimalIssue,
+  MinimalMilestone,
   MinimalPullRequest,
   MinimalRepository,
   MinimalUser,
@@ -25,6 +27,8 @@ final class Database extends _$Database {
     await transaction(() async {
       await delete(minimalCheckRun).go();
       await delete(minimalCommitStatus).go();
+      await delete(minimalIssue).go();
+      await delete(minimalMilestone).go();
       await delete(minimalPullRequest).go();
       await delete(minimalRepository).go();
       await delete(minimalUser).go();

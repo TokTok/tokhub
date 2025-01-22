@@ -14,24 +14,27 @@ const _logger = Logger(['RepositoryProvider']);
 @riverpod
 Future<List<MinimalRepositoryData>> repositories(Ref ref, String org) async {
   final db = await ref.watch(databaseProvider.future);
-  final stored = await (db.select(db.minimalRepository)
+  return (db.select(db.minimalRepository)
         ..orderBy([(r) => OrderingTerm(expression: r.fullName)]))
       .get();
-  return stored;
 }
 
-Future<void> repositoriesRefresh(WidgetRef ref, String org) async {
+Future<List<MinimalRepositoryData>> repositoriesRefresh(
+    WidgetRef ref, String org) async {
   ref.invalidate(_fetchAndStoreRepositoriesProvider(org));
   await ref.watch(_fetchAndStoreRepositoriesProvider(org).future);
+  return ref.refresh(repositoriesProvider(org).future);
 }
 
 @riverpod
 Future<void> _fetchAndStoreRepositories(Ref ref, String org) async {
   final repos = await ref.watch(_githubRepositoriesProvider(org).future);
   final db = await ref.watch(databaseProvider.future);
-  for (final repo in repos) {
-    await db.into(db.minimalRepository).insertOnConflictUpdate(repo);
-  }
+
+  await db.batch((b) {
+    b.insertAllOnConflictUpdate(db.minimalRepository, repos);
+  });
+
   _logger.v('Stored ${repos.length} repositories');
 }
 
@@ -40,10 +43,10 @@ Future<List<MinimalRepositoryData>> _githubRepositories(
     Ref ref, String org) async {
   final client = await ref.watch(githubClientProvider.future);
   if (client == null) {
+    _logger.e('GitHub: no client available');
     return const [];
   }
 
-  _logger.d('Fetching repositories for $org');
   final repos = await PaginationHelper(client)
       .objects<Map<String, dynamic>, MinimalRepositoryData>(
         'GET',

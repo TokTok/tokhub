@@ -14,7 +14,7 @@ const _logger = Logger(['CheckStatusProvider']);
 @riverpod
 Future<List<CheckStatus>> checkStatus(
     Ref ref, RepositorySlug slug, String headSha) async {
-  final statuses = await ref.watch(combinedRepositoryStatusProvider(
+  final statuses = await ref.watch(commitStatusProvider(
     slug,
     headSha,
   ).future);
@@ -22,14 +22,16 @@ Future<List<CheckStatus>> checkStatus(
     slug,
     headSha,
   ).future);
+  _logger.d('Found ${statuses.length} statuses and ${runs.length} runs '
+      'for ${slug.fullName}#$headSha');
 
   final byName = <String, CheckStatus>{};
   for (final run in runs) {
     byName[run.name] = CheckStatus(
       name: run.name,
-      conclusion: run.conclusion ?? CheckStatusConclusion.empty,
+      conclusion: run.conclusion ?? CheckStatusConclusion.pending,
       description: _completedDescription(
-        run.conclusion ?? CheckStatusConclusion.empty,
+        run.conclusion ?? CheckStatusConclusion.pending,
         run.startedAt,
         run.completedAt,
       ),
@@ -51,14 +53,15 @@ Future<List<CheckStatus>> checkStatus(
   return byName.values.toList(growable: false);
 }
 
-Future<void> checkStatusRefresh(
-    WidgetRef ref, RepositorySlug slug, String headSha, int pullRequest) async {
+Future<List<CheckStatus>> checkStatusRefresh(
+    WidgetRef ref, RepositorySlug slug, int pullRequest) async {
   await pullRequestRefresh(ref, slug, pullRequest);
   final newPr = await ref.watch(pullRequestProvider(slug, pullRequest).future);
   _logger.v(
       'Refreshing check status for $slug#${newPr.number} (${newPr.head.sha})');
-  await combinedRepositoryStatusRefresh(ref, slug, newPr.head.sha);
+  await commitStatusRefresh(ref, slug, newPr.head.sha);
   await checkRunsRefresh(ref, slug, newPr.head.sha);
+  return ref.refresh(checkStatusProvider(slug, newPr.head.sha).future);
 }
 
 String _capitalize(String? string) {
@@ -73,8 +76,11 @@ String _completedDescription(
   DateTime? startedAt,
   DateTime? completedAt,
 ) {
-  if (startedAt == null || completedAt == null) {
-    return '';
+  if (completedAt == null || startedAt == null) {
+    if (startedAt == null) {
+      return '';
+    }
+    return 'Started ${_timeDescription(DateTime.now().difference(startedAt))} ago';
   }
   final duration = completedAt.difference(startedAt);
   return '${conclusion.title} ${_timeDescription(duration)}';
