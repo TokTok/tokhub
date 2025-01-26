@@ -1,13 +1,39 @@
 import 'dart:math';
 
 import 'package:clock/clock.dart';
-import 'package:flutter/material.dart';
 import 'package:circular_buffer/circular_buffer.dart';
+import 'package:flutter/foundation.dart';
+
+class _StackFrame {
+  final String file;
+  final int line;
+  final int column;
+
+  const _StackFrame(this.file, this.line, this.column);
+
+  @override
+  String toString() => 'lib/$file:$line:$column';
+
+  static _StackFrame? fromString(String frame) {
+    final match = RegExp(r'package(?:s/|:)tokhub/([^ :]+)[: ](\d+):(\d+)')
+        .firstMatch(frame);
+    if (match == null) return null;
+    return _StackFrame(
+      match.group(1)!,
+      int.parse(match.group(2)!),
+      int.parse(match.group(3)!),
+    );
+  }
+}
 
 String _callerFileLine() {
-  final stack = StackTrace.current.toString().split('\n');
-  final caller = stack.firstWhere((line) => !line.contains('logger.dart'));
-  return caller.split(' ').last;
+  final stack = FlutterError.demangleStackTrace(StackTrace.current)
+      .toString()
+      .split('\n')
+      .map(_StackFrame.fromString)
+      .whereType<_StackFrame>()
+      .where((frame) => !frame.file.contains('logger.dart'));
+  return stack.isEmpty ? '<unknown file>' : stack.first.toString();
 }
 
 final class Logger {
