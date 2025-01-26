@@ -12,11 +12,11 @@ class _StackFrame {
   const _StackFrame(this.file, this.line, this.column);
 
   @override
-  String toString() => 'lib/$file:$line:$column';
+  String toString() => '$file:$line:$column';
 
   static _StackFrame? fromString(String frame) {
-    final match = RegExp(r'package(?:s/|:)tokhub/([^ :]+)[: ](\d+):(\d+)')
-        .firstMatch(frame);
+    final match =
+        RegExp(r'packages?[:/]([^ :]+)[: ](\d+):(\d+)').firstMatch(frame);
     if (match == null) return null;
     return _StackFrame(
       match.group(1)!,
