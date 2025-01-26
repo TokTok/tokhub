@@ -4,5 +4,6 @@ exclude:
   # Generated files.
   - "linux/**/*.cc"
   - "linux/**/*.h"
+  - "web/flutter_bootstrap.js"
   - "windows/**/*.cc"
   - "windows/**/*.h"
