@@ -1,13 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:tokhub/data_object.dart';
+import 'package:tokhub/db/database.dart';
 import 'package:tokhub/logger.dart';
-import 'package:tokhub/views.dart';
+import 'package:tokhub/models/settings.dart';
+import 'package:tokhub/providers/database.dart';
+import 'package:tokhub/models/views.dart';
 
-part 'settings.freezed.dart';
 part 'settings.g.dart';
 
 const _logger = Logger(['SettingsProvider']);
@@ -18,8 +17,13 @@ final class Settings extends _$Settings {
 
   @override
   Future<SettingsState> build() async {
-    return await loadDataObject(SettingsState.fromJson) ??
-        const SettingsState(mainView: MainView.home, token: null);
+    final db = await ref.read(databaseProvider.future);
+    return await db.select(db.settingsTable).getSingle().then((row) {
+      return SettingsState.fromJson(row.toJson());
+    }).catchError((e) {
+      _logger.e('Error loading settings: $e');
+      return const SettingsState();
+    });
   }
 
   void setMainView(MainView mainView) {
@@ -36,21 +40,13 @@ final class Settings extends _$Settings {
 
   void _save() {
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(seconds: 2), () {
-      state.whenData((data) => saveDataObject(data));
+    _saveTimer = Timer(const Duration(seconds: 2), () async {
+      state.whenData((data) async {
+        final db = await ref.read(databaseProvider.future);
+        await db
+            .into(db.settingsTable)
+            .insertOnConflictUpdate(SettingsTableData(id: 0, settings: data));
+      });
     });
   }
-}
-
-@freezed
-sealed class SettingsState
-    with _$SettingsState
-    implements DataObject<SettingsState> {
-  const factory SettingsState({
-    @Default(MainView.home) MainView mainView,
-    required String? token,
-  }) = _Settings;
-
-  factory SettingsState.fromJson(Map<String, dynamic> json) =>
-      _$SettingsStateFromJson(json);
 }

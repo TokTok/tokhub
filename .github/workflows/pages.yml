@@ -33,7 +33,7 @@ jobs:
       - name: Build content
         run: |
           ./tools/prepare-web
-          flutter build web
+          flutter build web --base-href "/tokhub/"
 
       - name: Set-up Pages
         uses: actions/configure-pages@v5

@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:tokhub/models/check_status.dart';
 import 'package:tokhub/models/github.dart';
 import 'package:tokhub/models/json_enum.dart';
+import 'package:tokhub/models/settings.dart';
+import 'package:tokhub/models/settings_table.dart';
 
 part 'database.g.dart';
 
@@ -11,6 +13,7 @@ part 'database.g.dart';
   MinimalPullRequest,
   MinimalRepository,
   MinimalUser,
+  SettingsTable,
 ])
 final class Database extends _$Database {
   Database(super.e);
