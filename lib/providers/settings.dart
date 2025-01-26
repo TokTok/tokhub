@@ -19,7 +19,8 @@ final class Settings extends _$Settings {
   Future<SettingsState> build() async {
     final db = await ref.watch(databaseProvider.future);
     return await db.select(db.settingsTable).getSingle().then((row) {
-      return SettingsState.fromJson(row.toJson());
+      _logger.d('Loaded settings (profile: ${row.id})');
+      return row.settings;
     }).catchError((e) {
       _logger.d('No settings; creating fresh settings: $e');
       return const SettingsState();
@@ -43,6 +44,7 @@ final class Settings extends _$Settings {
     _saveTimer = Timer(const Duration(seconds: 2), () async {
       state.whenData((data) async {
         final db = await ref.read(databaseProvider.future);
+        _logger.d('Saving settings');
         await db
             .into(db.settingsTable)
             .insertOnConflictUpdate(SettingsTableData(id: 0, settings: data));
