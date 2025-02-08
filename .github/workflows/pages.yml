@@ -9,6 +9,11 @@ on:
 env:
   FLUTTER_VERSION: "3.27.1"
 
+# Cancel old builds when pushing new commits.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy-pages:
     runs-on: ubuntu-24.04

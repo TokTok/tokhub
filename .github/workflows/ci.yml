@@ -8,6 +8,11 @@ on:
 env:
   FLUTTER_VERSION: "3.27.1"
 
+# Cancel old builds when pushing new commits.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   common:
     uses: TokTok/ci-tools/.github/workflows/common-ci.yml@master
