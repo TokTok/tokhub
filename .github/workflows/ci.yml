@@ -6,7 +6,7 @@ on:
     branches: [master]
 
 env:
-  FLUTTER_VERSION: "3.27.1"
+  FLUTTER_VERSION: "3.29.0"
 
 # Cancel old builds when pushing new commits.
 concurrency:
@@ -24,7 +24,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version: "3.27.4"
           cache: true
       - run: dart format . && git diff --exit-code
 
