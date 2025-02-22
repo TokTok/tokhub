@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [master]
-
-env:
-  FLUTTER_VERSION: "3.29.0"
+  push:
+    branches: [master]
 
 # Cancel old builds when pushing new commits.
 concurrency:
@@ -17,145 +16,15 @@ jobs:
   common:
     uses: TokTok/ci-tools/.github/workflows/common-ci.yml@master
 
-  format:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: "3.27.4"
-          cache: true
-      - run: dart format . && git diff --exit-code
+  prepare:
+    name: Prepare
+    uses: TokTok/ci-tools/.github/workflows/deploy-prepare.yml@master
 
-  analyze:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: ./tools/prepare
-      - run: flutter analyze .
-
-  test:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: sudo apt-get install -y libsqlite3-dev
-      - run: ./tools/prepare
-      - run: flutter test --coverage
-      - run: bash <(curl -s https://codecov.io/bash)
-
-  android-build:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: ./tools/prepare
-      - run: flutter build apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tokhub-android.apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-
-  linux-build:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build libgtk-3-dev
-      - run: ./tools/prepare
-      - run: flutter build linux
-      - run: tar zcf tokhub-linux.tar.gz -C build/linux/x64/release bundle
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tokhub-linux.tar.gz
-          path: tokhub-linux.tar.gz
-
-  ios-build:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: ./tools/prepare
-      - run: flutter build ios --no-codesign
-      - run: |
-          mkdir Payload
-          mv build/ios/iphoneos/Runner.app Payload
-          zip -r tokhub-ios.zip Payload
-          mv tokhub-ios.zip tokhub-ios.ipa
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tokhub-ios.ipa
-          path: tokhub-ios.ipa
-
-  macos-build:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: ./tools/prepare
-      - run: flutter build macos
-      - run: tar zcf tokhub-macos.tar.gz -C build/macos/Build/Products/Release tokhub.app
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tokhub-macos.tar.gz
-          path: tokhub-macos.tar.gz
-
-  web-build:
-    runs-on: windows-2022
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: ./tools/prepare-web
-      - run: flutter build web
-
-  windows-build:
-    runs-on: windows-2022
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: ./tools/prepare
-      - run: flutter build windows
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tokhub-windows-x64.exe
-          path: build/windows/x64/runner/Release/tokhub.exe
+  flutter:
+    name: Flutter
+    needs: [prepare]
+    uses: TokTok/ci-tools/.github/workflows/flutter.yml@master
+    with:
+      project-name: tokhub
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
